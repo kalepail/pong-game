@@ -75,7 +75,7 @@ export class ReplaySystem {
         // Remove paddle width from collision calculations - it's visual only
         const paddleFaceX = side === 'left' 
             ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
-            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT(this.canvas.width);
+            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT;
         const paddleTop = currentPaddleY;
         const paddleBottom = currentPaddleY + GAME_CONSTANTS.PADDLE_HEIGHT;
         
@@ -91,7 +91,7 @@ export class ReplaySystem {
     calculateMissPosition(ball: { position: Vec2; velocity: Vec2; radius: number }, missingSide: PaddleSide, currentPaddleY: number | null = null): { targetY: number } {
         const paddleFaceX = missingSide === 'left' 
             ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
-            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT(this.canvas.width);
+            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT;
         
         const ballHitY = this.calculateBallY(paddleFaceX, ball);
         if (ballHitY === null) return { targetY: this.canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 };
@@ -144,8 +144,8 @@ export class ReplaySystem {
         
         const maxBounceAngle = GAME_CONSTANTS.MAX_BOUNCE_ANGLE;
         const normalizedPosition = Math.max(
-            GAME_CONSTANTS.MIN_NORMALIZED_POSITION, 
-            Math.min(GAME_CONSTANTS.MAX_NORMALIZED_POSITION, requiredAngle / maxBounceAngle)
+            -GAME_CONSTANTS.NORMALIZED_POSITION_LIMIT, 
+            Math.min(GAME_CONSTANTS.NORMALIZED_POSITION_LIMIT, requiredAngle / maxBounceAngle)
         );
         const hitPosition = (normalizedPosition + 1) / 2;
         
@@ -158,7 +158,7 @@ export class ReplaySystem {
         };
     }
 
-    calculateEventMovements(event: GameEvent, ball: Ball, leftPaddle: Paddle, rightPaddle: Paddle): void {
+    calculateEventMovements(event: GameEvent): void {
         
         switch (event.type) {
             case EventType.HIT: {
@@ -363,8 +363,8 @@ export class ReplaySystem {
         // Check for upcoming score events and set up avoidance moves BEFORE moving paddles
         this.setupScoreAvoidance(ball, leftPaddle, rightPaddle);
 
-        this.movePaddle(leftPaddle, GAME_CONSTANTS.TICK_DURATION); // Exact tick duration for deterministic paddle movement
-        this.movePaddle(rightPaddle, GAME_CONSTANTS.TICK_DURATION);
+        this.movePaddle(leftPaddle, DERIVED_CONSTANTS.TICK_DURATION); // Exact tick duration for deterministic paddle movement
+        this.movePaddle(rightPaddle, DERIVED_CONSTANTS.TICK_DURATION);
 
         let ballStateChanged = false;
 
@@ -388,7 +388,7 @@ export class ReplaySystem {
             ballStateChanged = true;
 
             // Calculate all paddle movements for this event in one place
-            this.calculateEventMovements(event, ball, leftPaddle, rightPaddle);
+            this.calculateEventMovements(event);
 
             // Log the event using the appropriate method
             switch (event.type) {
@@ -434,13 +434,9 @@ export class ReplaySystem {
             ball.velocity.y = this.ballVelocity.y;
         }
 
-        // Check if replay should end (after processing all events + buffer)
+        // Check if replay should end (after processing all events)
         if (this.currentEventIndex >= this.events.length) {
-            const lastEventTick = this.events.length > 0 ? this.events[this.events.length - 1].tick : 0;
-            
-            if (currentTick > lastEventTick + REPLAY_CONFIG.REPLAY_END_BUFFER_TICKS) { // 2 second buffer at 60fps
-                this.stopReplay();
-            }
+            this.stopReplay();
         }
         
         return ballStateChanged;

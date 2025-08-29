@@ -63,14 +63,14 @@ export class Paddle {
             
             const hitPosition = Math.max(0, Math.min(1, (ball.position.y - paddleTop) / this.height));
             const normalizedPosition = Math.max(
-                GAME_CONSTANTS.MIN_NORMALIZED_POSITION, 
-                Math.min(GAME_CONSTANTS.MAX_NORMALIZED_POSITION, 2 * hitPosition - 1)
+                -GAME_CONSTANTS.NORMALIZED_POSITION_LIMIT, 
+                Math.min(GAME_CONSTANTS.NORMALIZED_POSITION_LIMIT, 2 * hitPosition - 1)
             );
             const maxBounceAngle = GAME_CONSTANTS.MAX_BOUNCE_ANGLE;
             const bounceAngle = normalizedPosition * maxBounceAngle;
             
             const approachSpeed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.y ** 2);
-            const speed = Math.min(approachSpeed * GAME_CONSTANTS.BALL_SPEED_INCREASE_FACTOR, GAME_CONSTANTS.BALL_MAX_SPEED);
+            const speed = approachSpeed * GAME_CONSTANTS.BALL_SPEED_INCREASE_FACTOR;
             
             ball.velocity.x = (this.side === 'left' ? 1 : -1) * Math.cos(bounceAngle) * speed;
             ball.velocity.y = Math.sin(bounceAngle) * speed;

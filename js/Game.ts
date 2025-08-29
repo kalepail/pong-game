@@ -17,7 +17,6 @@ export class Game {
     isPaused: boolean;
     leftScore: number;
     rightScore: number;
-    readonly maxScore: number;
     eventLogger: EventLogger;
     replaySystem: ReplaySystem;
     mode: GameMode;
@@ -25,9 +24,17 @@ export class Game {
     finalScores: FinalScores | null;
     animationId: number | null;
     
+    // Game constants loaded into class properties
+    readonly maxScore: number = GAME_CONSTANTS.MAX_SCORE;
+    readonly paddleOffset: number = GAME_CONSTANTS.PADDLE_OFFSET;
+    readonly paddleWidth: number = GAME_CONSTANTS.PADDLE_WIDTH;
+    readonly paddleHeight: number = GAME_CONSTANTS.PADDLE_HEIGHT;
+    readonly canvasWidth: number = GAME_CONSTANTS.CANVAS_WIDTH;
+    readonly canvasHeight: number = GAME_CONSTANTS.CANVAS_HEIGHT;
+    
     // Tick-based physics simulation - mathematically deterministic
     readonly TICKS_PER_SECOND: number = GAME_CONSTANTS.TICKS_PER_SECOND;
-    readonly TICK_DURATION: number = GAME_CONSTANTS.TICK_DURATION; // Exactly 16.666... ms per tick
+    readonly TICK_DURATION: number = 1 / GAME_CONSTANTS.TICKS_PER_SECOND;
     currentTick: number = 0;
     tickTimer: number = 0;
     
@@ -47,15 +54,14 @@ export class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')!;
         this.ball = new Ball(canvas);
-        this.leftPaddle = new Paddle(canvas, GAME_CONSTANTS.PADDLE_OFFSET, 'left');
-        this.rightPaddle = new Paddle(canvas, canvas.width - GAME_CONSTANTS.PADDLE_OFFSET - GAME_CONSTANTS.PADDLE_WIDTH, 'right');
+        this.leftPaddle = new Paddle(canvas, this.paddleOffset, 'left');
+        this.rightPaddle = new Paddle(canvas, canvas.width - this.paddleOffset - this.paddleWidth, 'right');
         this.keys = {};
         this.lastTime = 0;
         this.isRunning = false;
         this.isPaused = false;
         this.leftScore = 0;
         this.rightScore = 0;
-        this.maxScore = GAME_CONSTANTS.MAX_SCORE;
         this.eventLogger = new EventLogger('originalLogContent');
         this.replaySystem = new ReplaySystem(canvas);
         this.mode = 'play';
@@ -67,14 +73,14 @@ export class Game {
         
         // Initialize current and previous states
         this.currentState = {
-            ball: { x: canvas.width / 2, y: canvas.height / 2 },
-            leftPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 },
-            rightPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 }
+            ball: { x: this.canvasWidth / 2, y: this.canvasHeight / 2 },
+            leftPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 },
+            rightPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 }
         };
         this.previousState = {
-            ball: { x: canvas.width / 2, y: canvas.height / 2 },
-            leftPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 },
-            rightPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 }
+            ball: { x: this.canvasWidth / 2, y: this.canvasHeight / 2 },
+            leftPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 },
+            rightPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 }
         };
 
         this.setupControls();
@@ -91,11 +97,6 @@ export class Game {
             this.keys[e.key] = false;
             e.preventDefault();
         });
-
-        document.getElementById('startBtn')!.addEventListener('click', () => this.start());
-        document.getElementById('pauseBtn')!.addEventListener('click', () => this.togglePause());
-        document.getElementById('resetBtn')!.addEventListener('click', () => this.reset());
-        document.getElementById('replayBtn')!.addEventListener('click', () => this.startReplay());
     }
     
     syncCurrentState(): void {

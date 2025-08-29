@@ -1,5 +1,9 @@
 // Common gameplay constants shared across the game
 export const GAME_CONSTANTS = {
+    // Canvas dimensions
+    CANVAS_WIDTH: 800,
+    CANVAS_HEIGHT: 400,
+    
     // Paddle dimensions and positioning
     PADDLE_HEIGHT: 80,
     PADDLE_WIDTH: 10, // Visual only - not used in collision calculations
@@ -10,13 +14,12 @@ export const GAME_CONSTANTS = {
     BALL_RADIUS: 8,
     BALL_INITIAL_SPEED: 300,
     BALL_SPEED_INCREASE_FACTOR: 1.05,
-    BALL_MAX_SPEED: 800,
+
     BALL_SERVE_ANGLE_VARIATION: 0.5, // ±25% of π/4 radians
     
     // Paddle physics
     PADDLE_VELOCITY_TRANSFER: 0.3, // How much paddle velocity affects ball
-    MAX_NORMALIZED_POSITION: 0.8, // Maximum paddle hit position for angle calculation
-    MIN_NORMALIZED_POSITION: -0.8, // Minimum paddle hit position for angle calculation
+    NORMALIZED_POSITION_LIMIT: 0.8, // Maximum absolute paddle hit position for angle calculation
     
     // Physics constants
     MAX_BOUNCE_ANGLE: Math.PI / 3, // 60 degrees
@@ -25,7 +28,6 @@ export const GAME_CONSTANTS = {
     MAX_SCORE: 5, // Points needed to win
     
     // Game timing
-    TICK_DURATION: 1/60, // 60 FPS
     TICKS_PER_SECOND: 60,
     
     // Visual constants
@@ -38,11 +40,6 @@ export const REPLAY_CONFIG = {
     // Miss calculation tolerances
     SAFETY_MARGIN_RATIO: 0.2, // 20% of paddle height
     VELOCITY_TOLERANCE: 0.001,
-    
-
-    
-    // Collision detection buffer (2 second buffer for replay end)
-    REPLAY_END_BUFFER_TICKS: 120,
 } as const;
 
 // Derived constants (calculated from base constants)
@@ -54,10 +51,14 @@ export const DERIVED_CONSTANTS = {
     
     get PADDLE_FACE_X_RIGHT() {
         // Right paddle face is at the LEFT edge of the paddle (where ball hits)
-        return (canvasWidth: number) => canvasWidth - GAME_CONSTANTS.PADDLE_OFFSET - GAME_CONSTANTS.PADDLE_WIDTH;
+        return GAME_CONSTANTS.CANVAS_WIDTH - GAME_CONSTANTS.PADDLE_OFFSET - GAME_CONSTANTS.PADDLE_WIDTH;
     },
     
     get SAFETY_MARGIN() {
         return GAME_CONSTANTS.PADDLE_HEIGHT * REPLAY_CONFIG.SAFETY_MARGIN_RATIO;
+    },
+
+    get TICK_DURATION() {
+        return 1 / GAME_CONSTANTS.TICKS_PER_SECOND;
     }
 } as const;
