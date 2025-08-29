@@ -42,23 +42,4 @@ export const REPLAY_CONFIG = {
     VELOCITY_TOLERANCE: 0.001,
 } as const;
 
-// Derived constants (calculated from base constants)
-export const DERIVED_CONSTANTS = {
-    get PADDLE_FACE_X_LEFT() {
-        // Left paddle face is at the RIGHT edge of the paddle (where ball hits)
-        return GAME_CONSTANTS.PADDLE_OFFSET + GAME_CONSTANTS.PADDLE_WIDTH;
-    },
-    
-    get PADDLE_FACE_X_RIGHT() {
-        // Right paddle face is at the LEFT edge of the paddle (where ball hits)
-        return GAME_CONSTANTS.CANVAS_WIDTH - GAME_CONSTANTS.PADDLE_OFFSET - GAME_CONSTANTS.PADDLE_WIDTH;
-    },
-    
-    get SAFETY_MARGIN() {
-        return GAME_CONSTANTS.PADDLE_HEIGHT * REPLAY_CONFIG.SAFETY_MARGIN_RATIO;
-    },
 
-    get TICK_DURATION() {
-        return 1 / GAME_CONSTANTS.TICKS_PER_SECOND;
-    }
-} as const;

@@ -3,7 +3,8 @@ import { Engine } from './Engine.ts';
 import { Paddle } from './Paddle.ts';
 import { GameEvent, Ball, PaddleSide, EventType, HitEvent } from './types.ts';
 import { Vec2 } from './Vec2.ts';
-import { GAME_CONSTANTS, DERIVED_CONSTANTS } from './constants.ts';
+import { GAME_CONSTANTS } from './constants.ts';
+import { GameUtils } from './GameUtils.ts';
 
 interface PendingMove {
     targetY: number;
@@ -283,8 +284,8 @@ export class ReplaySystem {
         // Check for upcoming score events and set up avoidance moves BEFORE moving paddles
         this.setupScoreAvoidance(ball, leftPaddle, rightPaddle);
 
-        this.movePaddle(leftPaddle, DERIVED_CONSTANTS.TICK_DURATION); // Exact tick duration for deterministic paddle movement
-        this.movePaddle(rightPaddle, DERIVED_CONSTANTS.TICK_DURATION);
+        this.movePaddle(leftPaddle, GameUtils.getTickDuration()); // Exact tick duration for deterministic paddle movement
+        this.movePaddle(rightPaddle, GameUtils.getTickDuration());
 
         let ballStateChanged = false;
         const eventsInThisTick: number[] = [];

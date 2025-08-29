@@ -1,7 +1,7 @@
 import { Ball } from './Ball.ts';
 import { Paddle } from './Paddle.ts';
 import { GameMode, KeyMap, PaddleSide } from './types.ts';
-import { GAME_CONSTANTS, DERIVED_CONSTANTS } from './constants.ts';
+import { GAME_CONSTANTS } from './constants.ts';
 import { GameUtils } from './GameUtils.ts';
 
 export interface PhysicsState {
@@ -23,7 +23,7 @@ export class Engine {
     
     // Tick-based physics simulation - mathematically deterministic
     readonly TICKS_PER_SECOND: number = GAME_CONSTANTS.TICKS_PER_SECOND;
-    readonly TICK_DURATION: number = DERIVED_CONSTANTS.TICK_DURATION;
+    readonly TICK_DURATION: number = GameUtils.getTickDuration();
     currentTick: number = 0;
     tickTimer: number = 0;
     
@@ -269,8 +269,8 @@ export class Engine {
      */
     wouldPaddleIntercept(ball: { position: { x: number; y: number }; velocity: { x: number; y: number }; radius: number }, side: PaddleSide, paddleY: number): boolean {
         const paddleFaceX = side === 'left' 
-            ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
-            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT;
+            ? GameUtils.getPaddleFaceXLeft()
+            : GameUtils.getPaddleFaceXRight();
         const paddleTop = paddleY;
         const paddleBottom = paddleY + GAME_CONSTANTS.PADDLE_HEIGHT;
         
@@ -310,8 +310,8 @@ export class Engine {
      */
     calculateMissPosition(ball: { position: { x: number; y: number }; velocity: { x: number; y: number }; radius: number }, missingSide: PaddleSide, currentPaddleY: number | null = null): { targetY: number } {
         const paddleFaceX = missingSide === 'left' 
-            ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
-            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT;
+            ? GameUtils.getPaddleFaceXLeft()
+            : GameUtils.getPaddleFaceXRight();
         
         const ballHitY = this.predictBallY(paddleFaceX, ball);
         if (ballHitY === null) return { targetY: GameUtils.getPaddleCenterY(this.canvas) };
@@ -322,7 +322,7 @@ export class Engine {
         const minCatchY = ballTop - GAME_CONSTANTS.PADDLE_HEIGHT;
         const maxCatchY = ballBottom;
         
-        const safetyMargin = GAME_CONSTANTS.PADDLE_HEIGHT * 0.2; // DERIVED_CONSTANTS.SAFETY_MARGIN
+        const safetyMargin = GameUtils.getSafetyMargin();
         
         const avoidAbove = minCatchY - safetyMargin;
         const avoidBelow = maxCatchY + safetyMargin;
