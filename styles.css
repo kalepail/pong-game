@@ -67,6 +67,23 @@ button:disabled {
     justify-content: center;
 }
 
+.event-log-container {
+    display: flex;
+    flex-direction: column;
+    width: 380px;
+}
+
+.event-log-title {
+    color: #0f0;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #0f0;
+    border-bottom: none;
+    padding: 8px;
+    background: #222;
+    font-weight: bold;
+}
+
 .event-log {
     padding: 10px;
     background: #222;
@@ -75,16 +92,32 @@ button:disabled {
     overflow-y: auto;
     text-align: left;
     font-size: 11px;
-    width: 380px;
 }
 
-.event-log h3 {
-    color: #0f0;
-    margin-bottom: 10px;
-    font-size: 14px;
-    text-align: center;
-    border-bottom: 1px solid #0f0;
-    padding-bottom: 5px;
+.log-entry {
+    margin-bottom: 4px;
+    border-left: 0 solid transparent;
+    padding-left: 0;
+    transition: all 0.5s;
+}
+
+.log-entry.new-entry {
+    animation: add 5s;
+}
+
+.log-entry.replay-current {
+    color: #ff0;
+    border-left: 3px solid #ff0;
+    padding-left: 7px;
+}
+
+@keyframes add {
+    from {
+        color: #ff0;
+    }
+    to {
+        color: #0f0;
+    }
 }
 
 #instructions {

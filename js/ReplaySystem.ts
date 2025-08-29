@@ -28,11 +28,12 @@ export class ReplaySystem {
     ballPosition: Vec2 | null;
     ballVelocity: Vec2 | null;
     replayLogger: EventLogger;
+    originalLogger: EventLogger | null;
     paddleTargets: PaddleTargets;
     pendingMoves: PendingMoves;
     lastProcessedScoreEvent: GameEvent | null;
 
-    constructor(canvas: HTMLCanvasElement) {
+    constructor(canvas: HTMLCanvasElement, originalLogger?: EventLogger) {
         this.canvas = canvas;
         this.events = [];
         this.currentEventIndex = 0;
@@ -40,6 +41,7 @@ export class ReplaySystem {
         this.ballPosition = null;
         this.ballVelocity = null;
         this.replayLogger = new EventLogger('replayLogContent');
+        this.originalLogger = originalLogger || null;
         this.paddleTargets = { left: null, right: null };
         this.pendingMoves = { left: null, right: null };
         this.lastProcessedScoreEvent = null;
@@ -367,12 +369,15 @@ export class ReplaySystem {
         this.movePaddle(rightPaddle, DERIVED_CONSTANTS.TICK_DURATION);
 
         let ballStateChanged = false;
+        const eventsInThisTick: number[] = [];
 
         // Process events that should occur at this tick
         while (this.currentEventIndex < this.events.length) {
             const event = this.events[this.currentEventIndex];
             
             if (event.tick > currentTick) break;
+
+            eventsInThisTick.push(this.currentEventIndex);
 
             // Handle position based on event type
             switch (event.type) {
@@ -426,6 +431,11 @@ export class ReplaySystem {
             this.currentEventIndex++;
         }
 
+        // Highlight all events from this tick in the original log
+        if (this.originalLogger && eventsInThisTick.length > 0) {
+            this.originalLogger.highlightReplayEvents(eventsInThisTick);
+        }
+
         // Set ball state from replay events only if state changed from an event
         if (ballStateChanged && this.ballPosition && this.ballVelocity) {
             ball.position.x = this.ballPosition.x;
@@ -445,6 +455,8 @@ export class ReplaySystem {
     stopReplay(): void {
         this.isActive = false;
         this.currentEventIndex = 0;
+        
+        // Don't clear highlights here - let endReplay() handle it after animation
     }
 
     getLastProcessedScoreEvent(): GameEvent | null {

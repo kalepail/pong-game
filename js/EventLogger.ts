@@ -79,7 +79,7 @@ export class EventLogger {
         });
     }
 
-    displayEvent(event: GameEvent): void {
+    displayEvent(event: GameEvent, skipScroll: boolean = false, skipAnimation: boolean = false): void {
         const logDiv = document.getElementById(this.logElementId);
         if (!logDiv) return;
 
@@ -117,10 +117,20 @@ export class EventLogger {
                          paddleText;
 
         const eventElement = document.createElement('div');
-        eventElement.style.marginBottom = '4px';
+        eventElement.className = 'log-entry';
         eventElement.innerHTML = `${headerLine}<br>${dataLine}`;
+        
+        // Add highlight animation for new entries (skip during import)
+        if (!skipAnimation && (this.logElementId === 'originalLogContent' || this.logElementId === 'replayLogContent')) {
+            eventElement.classList.add('new-entry');
+        }
+        
         logDiv.appendChild(eventElement);
-        logDiv.scrollTop = logDiv.scrollHeight;
+        
+        // Scroll the new event into view at the bottom (skip during import)
+        if (!skipScroll) {
+            eventElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
     }
 
     exportLog(): string {
@@ -177,5 +187,80 @@ export class EventLogger {
 
     getEvents(): GameEvent[] {
         return [...this.events];
+    }
+
+    highlightReplayEvent(eventIndex: number): void {
+        const logDiv = document.getElementById(this.logElementId);
+        if (!logDiv) return;
+
+        // Remove previous highlight
+        const previousHighlight = logDiv.querySelector('.replay-current');
+        if (previousHighlight) {
+            previousHighlight.classList.remove('replay-current');
+        }
+
+        // Add highlight to current event
+        const entries = logDiv.querySelectorAll('.log-entry');
+        if (entries[eventIndex]) {
+            entries[eventIndex].classList.add('replay-current');
+            // Scroll to the highlighted event to track replay progress
+            entries[eventIndex].scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+
+        // Also scroll the replay log to the same position
+        const replayLogDiv = document.getElementById('replayLogContent');
+        if (replayLogDiv) {
+            const replayEntries = replayLogDiv.querySelectorAll('.log-entry');
+            if (replayEntries[eventIndex]) {
+                replayEntries[eventIndex].scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }
+    }
+
+    highlightReplayEvents(eventIndices: number[]): void {
+        const logDiv = document.getElementById(this.logElementId);
+        if (!logDiv) return;
+
+        // Remove previous highlights
+        const previousHighlights = logDiv.querySelectorAll('.replay-current');
+        previousHighlights.forEach(highlight => {
+            highlight.classList.remove('replay-current');
+        });
+
+        // Add highlight to all current events
+        const entries = logDiv.querySelectorAll('.log-entry');
+        eventIndices.forEach(eventIndex => {
+            if (entries[eventIndex]) {
+                entries[eventIndex].classList.add('replay-current');
+            }
+        });
+
+        // Scroll to the last highlighted event (highest index)
+        if (eventIndices.length > 0) {
+            const lastIndex = eventIndices[eventIndices.length - 1];
+            if (entries[lastIndex]) {
+                entries[lastIndex].scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }
+
+        // Also scroll the replay log to the same position
+        const replayLogDiv = document.getElementById('replayLogContent');
+        if (replayLogDiv && eventIndices.length > 0) {
+            const lastIndex = eventIndices[eventIndices.length - 1];
+            const replayEntries = replayLogDiv.querySelectorAll('.log-entry');
+            if (replayEntries[lastIndex]) {
+                replayEntries[lastIndex].scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }
+    }
+
+    clearReplayHighlight(): void {
+        const logDiv = document.getElementById(this.logElementId);
+        if (!logDiv) return;
+
+        const highlighted = logDiv.querySelector('.replay-current');
+        if (highlighted) {
+            highlighted.classList.remove('replay-current');
+        }
     }
 }

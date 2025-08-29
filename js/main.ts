@@ -10,10 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
         game.start();
     });
     
-    document.getElementById('pauseBtn')!.addEventListener('click', () => {
-        game.togglePause();
-    });
-    
     document.getElementById('resetBtn')!.addEventListener('click', () => {
         game.reset();
     });
@@ -40,9 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const updateButtons = () => {
         const hasEvents = game.eventLogger.events.length > 0;
-        (document.getElementById('pauseBtn') as HTMLButtonElement).disabled = !game.isRunning;
         (document.getElementById('replayBtn') as HTMLButtonElement).disabled = !hasEvents || game.isRunning;
-        (document.getElementById('exportBtn') as HTMLButtonElement).disabled = !hasEvents;
+        (document.getElementById('exportBtn') as HTMLButtonElement).disabled = !hasEvents || game.isRunning;
+        (document.getElementById('importBtn') as HTMLButtonElement).disabled = game.isRunning;
     };
     
     setInterval(updateButtons, 100);

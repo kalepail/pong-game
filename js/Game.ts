@@ -14,7 +14,6 @@ export class Game {
     keys: KeyMap;
     lastTime: number;
     isRunning: boolean;
-    isPaused: boolean;
     leftScore: number;
     rightScore: number;
     eventLogger: EventLogger;
@@ -59,11 +58,10 @@ export class Game {
         this.keys = {};
         this.lastTime = 0;
         this.isRunning = false;
-        this.isPaused = false;
         this.leftScore = 0;
         this.rightScore = 0;
         this.eventLogger = new EventLogger('originalLogContent');
-        this.replaySystem = new ReplaySystem(canvas);
+        this.replaySystem = new ReplaySystem(canvas, this.eventLogger);
         this.mode = 'play';
         this.lastHitPlayer = null;
         this.finalScores = null;
@@ -121,7 +119,6 @@ export class Game {
         }
 
         this.isRunning = true;
-        this.isPaused = false;
         this.leftScore = 0;
         this.rightScore = 0;
         this.updateScore();
@@ -148,7 +145,6 @@ export class Game {
         );
 
         (document.getElementById('startBtn') as HTMLButtonElement).disabled = true;
-        (document.getElementById('pauseBtn') as HTMLButtonElement).disabled = false;
         (document.getElementById('replayBtn') as HTMLButtonElement).disabled = true;
         (document.getElementById('exportBtn') as HTMLButtonElement).disabled = true;
 
@@ -181,14 +177,8 @@ export class Game {
         }
     }
 
-    togglePause(): void {
-        this.isPaused = !this.isPaused;
-        document.getElementById('pauseBtn')!.textContent = this.isPaused ? 'RESUME' : 'PAUSE';
-    }
-
     reset(clearLogs: boolean = true): void {
         this.isRunning = false;
-        this.isPaused = false;
         this.mode = 'play';
         this.leftScore = 0;
         this.rightScore = 0;
@@ -213,8 +203,6 @@ export class Game {
 
         this.updateScore();
         (document.getElementById('startBtn') as HTMLButtonElement).disabled = false;
-        (document.getElementById('pauseBtn') as HTMLButtonElement).disabled = true;
-        document.getElementById('pauseBtn')!.textContent = 'PAUSE';
         document.getElementById('modeIndicator')!.textContent = 'MODE: PLAY';
 
         this.replaySystem.stopReplay();
@@ -225,6 +213,8 @@ export class Game {
             this.replaySystem.replayLogger.reset();
             (document.getElementById('replayBtn') as HTMLButtonElement).disabled = true;
             (document.getElementById('exportBtn') as HTMLButtonElement).disabled = true;
+            // Clear file input to allow re-import of same file
+            (document.getElementById('fileInput') as HTMLInputElement).value = '';
         } else {
             const hasEvents = this.eventLogger.events.length > 0;
             (document.getElementById('replayBtn') as HTMLButtonElement).disabled = !hasEvents;
@@ -239,7 +229,6 @@ export class Game {
 
         this.mode = 'replay';
         this.isRunning = true;
-        this.isPaused = false;
         this.leftScore = 0;
         this.rightScore = 0;
         this.leftPaddle.reset();
@@ -258,7 +247,6 @@ export class Game {
 
         document.getElementById('modeIndicator')!.textContent = 'MODE: REPLAY';
         (document.getElementById('startBtn') as HTMLButtonElement).disabled = true;
-        (document.getElementById('pauseBtn') as HTMLButtonElement).disabled = false;
         (document.getElementById('replayBtn') as HTMLButtonElement).disabled = true;
 
         this.replaySystem.startReplay(this.eventLogger.events);
@@ -306,7 +294,7 @@ export class Game {
                     if (logDiv) {
                         logDiv.innerHTML = '';
                         for (const event of events) {
-                            this.eventLogger.displayEvent(event);
+                            this.eventLogger.displayEvent(event, true, true); // Skip scroll and animation during import
                         }
                     }
 
@@ -360,7 +348,7 @@ export class Game {
         const frameTime = Math.min((currentTime - this.lastTime) / 1000, 0.1); // Cap at 100ms (10fps min)
         this.lastTime = currentTime;
         
-        if (this.isRunning && !this.isPaused) {
+        if (this.isRunning) {
             // Accumulate time for tick-based physics
             this.tickTimer += frameTime;
             
@@ -384,7 +372,7 @@ export class Game {
         }
         
         // Calculate interpolation factor for smooth visual rendering
-        const alpha = this.isRunning && !this.isPaused ? (this.tickTimer / this.TICK_DURATION) : 0;
+        const alpha = this.isRunning ? (this.tickTimer / this.TICK_DURATION) : 0;
         
         // Render with interpolation between physics states
         this.renderInterpolated(alpha);
@@ -425,7 +413,7 @@ export class Game {
             // Update ball with exact tick duration for deterministic physics
             this.ball.update(this.TICK_DURATION);
 
-            if (this.ball.isOutOfBounds()) {
+            if (this.ball.isOutOfBounds() && this.mode === 'play') {
                 const scoringPlayer = this.ball.getScoringPlayer();
 
                 this.eventLogger.logScoreEvent(
@@ -492,10 +480,11 @@ export class Game {
                 // Sync states after score change for smooth transition
                 this.syncCurrentState();
                 this.syncPreviousState();
-            }
-
-            if (this.leftScore >= this.maxScore || this.rightScore >= this.maxScore) {
-                this.replaySystem.stopReplay();
+                
+                // Check for game end immediately after processing the score event
+                if (this.leftScore >= this.maxScore || this.rightScore >= this.maxScore) {
+                    this.replaySystem.stopReplay();
+                }
             }
 
             if (!this.replaySystem.isActive) {
@@ -593,9 +582,12 @@ export class Game {
         message += `Matching: ${comparison.matching} events\n`;
         message += comparison.identical ? 'PERFECT REPLAY!' : 'Some differences detected';
 
+        // Wait for CSS animation to complete before clearing highlights and showing alert
         setTimeout(() => {
+            // Clear highlights after animation completes
+            this.eventLogger.clearReplayHighlight();
             alert(message);
             this.reset(false);
-        }, 100);
+        }, 500); // Wait for 0.5s CSS transition to complete
     }
 }
