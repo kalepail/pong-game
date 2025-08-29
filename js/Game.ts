@@ -81,6 +81,8 @@ export class Game {
         this.replaySystem.replayLogger.reset();
         this.finalScores = null;
         this.ball.reset('left');
+        this.leftPaddle.reset();
+        this.rightPaddle.reset();
         this.lastHitPlayer = null;
 
         const targetPaddle = this.ball.velocity.x > 0 ? this.rightPaddle : this.leftPaddle;
@@ -178,6 +180,8 @@ export class Game {
         this.isPaused = false;
         this.leftScore = 0;
         this.rightScore = 0;
+        this.leftPaddle.reset();
+        this.rightPaddle.reset();
         this.updateScore();
 
         document.getElementById('modeIndicator')!.textContent = 'MODE: REPLAY';
