@@ -215,15 +215,17 @@ export class ReplaySystem {
         if (Math.abs(distance) < paddleSpeed * deltaTime) {
             paddle.y = Math.max(0, Math.min(this.canvas.height - paddle.height, targetY));
             pendingMove.executed = true;
+            
+            // Clear positioning moves when complete (but not hit/miss moves)
+            if (pendingMove.type === 'position_for_next_hit' || pendingMove.type === 'position_for_serve_followup') {
+                this.pendingMoves[paddle.side] = null;
+            }
         } else {
             // Move toward target at maximum speed
             const direction = Math.sign(distance);
             const newY = currentY + direction * paddleSpeed * deltaTime;
             paddle.y = Math.max(0, Math.min(this.canvas.height - paddle.height, newY));
         }
-        
-        // Don't clear the pending move - let event processing handle it
-        // This keeps the paddle moving toward its target until reached
     }
 
     startReplay(events) {
@@ -268,16 +270,22 @@ export class ReplaySystem {
                 // Look ahead to find when the OTHER player hits next to see where current paddle should be
                 const currentPlayer = event.player;
                 const otherPlayer = currentPlayer === 'left' ? 'right' : 'left';
-                const currentPaddle = currentPlayer === 'left' ? leftPaddle : rightPaddle;
                 
                 for (let i = this.currentEventIndex + 1; i < this.events.length; i++) {
                     const nextEvent = this.events[i];
                     if (nextEvent.type === 'hit' && nextEvent.player === otherPlayer && nextEvent.targetPaddlePosition) {
                         // When the other player hits next, they will record where current paddle was
-                        // So position current paddle where other player will record it
+                        // So animate current paddle to where other player will record it
                         const paddleHeight = 80;
                         const targetY = nextEvent.targetPaddlePosition.y - paddleHeight / 2;
-                        currentPaddle.y = Math.max(0, Math.min(this.canvas.height - paddleHeight, targetY));
+                        const clampedTargetY = Math.max(0, Math.min(this.canvas.height - paddleHeight, targetY));
+                        
+                        this.pendingMoves[currentPlayer] = {
+                            targetY: clampedTargetY,
+                            eventIndex: i,
+                            type: 'position_for_next_hit',
+                            executed: false
+                        };
                         break;
                     }
                 }
@@ -288,16 +296,22 @@ export class ReplaySystem {
                 // Look ahead to find when the receiving player hits to see where serving paddle should be
                 const servingPlayer = event.player;
                 const receivingPlayer = servingPlayer === 'left' ? 'right' : 'left';
-                const servingPaddle = servingPlayer === 'left' ? leftPaddle : rightPaddle;
                 
                 for (let i = this.currentEventIndex + 1; i < this.events.length; i++) {
                     const nextEvent = this.events[i];
                     if (nextEvent.type === 'hit' && nextEvent.player === receivingPlayer && nextEvent.targetPaddlePosition) {
                         // When the receiving player hits, they will record where serving paddle was
-                        // So position serving paddle where receiving player will record it
+                        // So animate serving paddle to where receiving player will record it
                         const paddleHeight = 80;
                         const targetY = nextEvent.targetPaddlePosition.y - paddleHeight / 2;
-                        servingPaddle.y = Math.max(0, Math.min(this.canvas.height - paddleHeight, targetY));
+                        const clampedTargetY = Math.max(0, Math.min(this.canvas.height - paddleHeight, targetY));
+                        
+                        this.pendingMoves[servingPlayer] = {
+                            targetY: clampedTargetY,
+                            eventIndex: i,
+                            type: 'position_for_serve_followup',
+                            executed: false
+                        };
                         break;
                     }
                 }
