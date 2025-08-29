@@ -1,7 +1,9 @@
 import { EventLogger } from './EventLogger.ts';
-import { GameEvent, Ball, Paddle, PaddleSide, EventType, HitEvent } from './types.ts';
+import { Engine } from './Engine.ts';
+import { Paddle } from './Paddle.ts';
+import { GameEvent, Ball, PaddleSide, EventType, HitEvent } from './types.ts';
 import { Vec2 } from './Vec2.ts';
-import { GAME_CONSTANTS, REPLAY_CONFIG, DERIVED_CONSTANTS } from './constants.ts';
+import { GAME_CONSTANTS, DERIVED_CONSTANTS } from './constants.ts';
 
 interface PendingMove {
     targetY: number;
@@ -22,6 +24,7 @@ interface PendingMoves {
 
 export class ReplaySystem {
     canvas: HTMLCanvasElement;
+    engine: Engine;
     events: GameEvent[];
     currentEventIndex: number;
     isActive: boolean;
@@ -33,8 +36,9 @@ export class ReplaySystem {
     pendingMoves: PendingMoves;
     lastProcessedScoreEvent: GameEvent | null;
 
-    constructor(canvas: HTMLCanvasElement, originalLogger?: EventLogger) {
+    constructor(canvas: HTMLCanvasElement, engine: Engine, originalLogger?: EventLogger) {
         this.canvas = canvas;
+        this.engine = engine;
         this.events = [];
         this.currentEventIndex = 0;
         this.isActive = false;
@@ -48,92 +52,15 @@ export class ReplaySystem {
     }
 
     calculateBallY(targetX: number, ball: { position: Vec2; velocity: Vec2; radius: number }): number | null {
-        const dx = targetX - ball.position.x;
-        const vx = ball.velocity.x;
-        
-        if (Math.abs(vx) < REPLAY_CONFIG.VELOCITY_TOLERANCE || (dx * vx) < 0) return null;
-        
-        const time = dx / vx;
-        let y = ball.position.y + ball.velocity.y * time;
-        
-        const height = this.canvas.height;
-        const ballRadius = ball.radius;
-        
-        let bounces = 0;
-        while (y < ballRadius || y > height - ballRadius) {
-            if (y < ballRadius) {
-                y = 2 * ballRadius - y;
-                bounces++;
-            } else if (y > height - ballRadius) {
-                y = 2 * (height - ballRadius) - y;
-                bounces++;
-            }
-        }
-        
-        return y;
+        return this.engine.predictBallY(targetX, ball);
     }
 
     paddleWouldIntercept(ball: { position: Vec2; velocity: Vec2; radius: number }, side: PaddleSide, currentPaddleY: number): boolean {
-        // Remove paddle width from collision calculations - it's visual only
-        const paddleFaceX = side === 'left' 
-            ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
-            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT;
-        const paddleTop = currentPaddleY;
-        const paddleBottom = currentPaddleY + GAME_CONSTANTS.PADDLE_HEIGHT;
-        
-        const ballY = this.calculateBallY(paddleFaceX, ball);
-        if (ballY === null) return false;
-        
-        const ballTop = ballY - ball.radius;
-        const ballBottom = ballY + ball.radius;
-        
-        return ballBottom >= paddleTop && ballTop <= paddleBottom;
+        return this.engine.wouldPaddleIntercept(ball, side, currentPaddleY);
     }
 
     calculateMissPosition(ball: { position: Vec2; velocity: Vec2; radius: number }, missingSide: PaddleSide, currentPaddleY: number | null = null): { targetY: number } {
-        const paddleFaceX = missingSide === 'left' 
-            ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
-            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT;
-        
-        const ballHitY = this.calculateBallY(paddleFaceX, ball);
-        if (ballHitY === null) return { targetY: this.canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 };
-        
-        const ballTop = ballHitY - ball.radius;
-        const ballBottom = ballHitY + ball.radius;
-        
-        const minCatchY = ballTop - GAME_CONSTANTS.PADDLE_HEIGHT;
-        const maxCatchY = ballBottom;
-        
-        const safetyMargin = DERIVED_CONSTANTS.SAFETY_MARGIN;
-        
-        const avoidAbove = minCatchY - safetyMargin;
-        const avoidBelow = maxCatchY + safetyMargin;
-        
-        if (currentPaddleY === null) {
-            currentPaddleY = this.canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
-        }
-        
-        let targetY: number;
-        
-        if (avoidAbove >= 0) {
-            if (avoidBelow + GAME_CONSTANTS.PADDLE_HEIGHT <= this.canvas.height) {
-                const distanceAbove = Math.abs(currentPaddleY - avoidAbove);
-                const distanceBelow = Math.abs(currentPaddleY - avoidBelow);
-                targetY = distanceAbove <= distanceBelow ? avoidAbove : avoidBelow;
-            } else {
-                targetY = avoidAbove;
-            }
-        } else if (avoidBelow + GAME_CONSTANTS.PADDLE_HEIGHT <= this.canvas.height) {
-            targetY = avoidBelow;
-        } else {
-            const distanceFromTop = Math.abs(ballHitY - 0);
-            const distanceFromBottom = Math.abs(ballHitY - this.canvas.height);
-            targetY = distanceFromTop > distanceFromBottom ? 0 : this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT;
-        }
-        
-        targetY = Math.max(0, Math.min(this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT, targetY));
-        
-        return { targetY };
+        return this.engine.calculateMissPosition(ball, missingSide, currentPaddleY);
     }
 
     calculateOptimalPaddlePosition(hitEvent: HitEvent, paddleHeight: number): { paddleTop: number; hitPosition: number; collisionPoint: { y: number } } {
@@ -313,23 +240,14 @@ export class ReplaySystem {
         const pendingMove = this.pendingMoves[paddle.side];
         if (!pendingMove) return;
         
-        const targetY = pendingMove.targetY;
-        const currentY = paddle.y;
-        const paddleSpeed = GAME_CONSTANTS.PADDLE_SPEED;
+        const result = this.engine.movePaddleToTarget(paddle, pendingMove.targetY, deltaTime);
         
-        const distance = targetY - currentY;
-        
-        if (Math.abs(distance) < paddleSpeed * deltaTime) {
-            paddle.y = Math.max(0, Math.min(this.canvas.height - paddle.height, targetY));
+        if (result.reached) {
             pendingMove.executed = true;
             
             if (pendingMove.type === 'position_for_next_hit' || pendingMove.type === 'position_for_serve_followup') {
                 this.pendingMoves[paddle.side] = null;
             }
-        } else {
-            const direction = Math.sign(distance);
-            const newY = currentY + direction * paddleSpeed * deltaTime;
-            paddle.y = Math.max(0, Math.min(this.canvas.height - paddle.height, newY));
         }
     }
 

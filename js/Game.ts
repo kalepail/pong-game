@@ -2,12 +2,13 @@ import { Ball } from './Ball.ts';
 import { Paddle } from './Paddle.ts';
 import { EventLogger } from './EventLogger.ts';
 import { ReplaySystem } from './ReplaySystem.ts';
+import { Engine, CollisionResult } from './Engine.ts';
 import { GameMode, KeyMap, FinalScores, PaddleSide } from './types.ts';
 import { GAME_CONSTANTS } from './constants.ts';
 
 export class Game {
     canvas: HTMLCanvasElement;
-    ctx: CanvasRenderingContext2D;
+    engine: Engine;
     ball: Ball;
     leftPaddle: Paddle;
     rightPaddle: Paddle;
@@ -30,28 +31,10 @@ export class Game {
     readonly paddleHeight: number = GAME_CONSTANTS.PADDLE_HEIGHT;
     readonly canvasWidth: number = GAME_CONSTANTS.CANVAS_WIDTH;
     readonly canvasHeight: number = GAME_CONSTANTS.CANVAS_HEIGHT;
-    
-    // Tick-based physics simulation - mathematically deterministic
-    readonly TICKS_PER_SECOND: number = GAME_CONSTANTS.TICKS_PER_SECOND;
-    readonly TICK_DURATION: number = 1 / GAME_CONSTANTS.TICKS_PER_SECOND;
-    currentTick: number = 0;
-    tickTimer: number = 0;
-    
-    // Physics states for interpolation
-    currentState: {
-        ball: { x: number; y: number };
-        leftPaddle: { y: number };
-        rightPaddle: { y: number };
-    };
-    previousState: {
-        ball: { x: number; y: number };
-        leftPaddle: { y: number };
-        rightPaddle: { y: number };
-    };
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d')!;
+        this.engine = new Engine(canvas);
         this.ball = new Ball(canvas);
         this.leftPaddle = new Paddle(canvas, this.paddleOffset, 'left');
         this.rightPaddle = new Paddle(canvas, canvas.width - this.paddleOffset - this.paddleWidth, 'right');
@@ -61,25 +44,11 @@ export class Game {
         this.leftScore = 0;
         this.rightScore = 0;
         this.eventLogger = new EventLogger('originalLogContent');
-        this.replaySystem = new ReplaySystem(canvas, this.eventLogger);
+        this.replaySystem = new ReplaySystem(canvas, this.engine, this.eventLogger);
         this.mode = 'play';
         this.lastHitPlayer = null;
         this.finalScores = null;
         this.animationId = null;
-        this.currentTick = 0;
-        this.tickTimer = 0;
-        
-        // Initialize current and previous states
-        this.currentState = {
-            ball: { x: this.canvasWidth / 2, y: this.canvasHeight / 2 },
-            leftPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 },
-            rightPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 }
-        };
-        this.previousState = {
-            ball: { x: this.canvasWidth / 2, y: this.canvasHeight / 2 },
-            leftPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 },
-            rightPaddle: { y: this.canvasHeight / 2 - this.paddleHeight / 2 }
-        };
 
         this.setupControls();
         this.gameLoop = this.gameLoop.bind(this);
@@ -95,20 +64,6 @@ export class Game {
             this.keys[e.key] = false;
             e.preventDefault();
         });
-    }
-    
-    syncCurrentState(): void {
-        this.currentState.ball.x = this.ball.position.x;
-        this.currentState.ball.y = this.ball.position.y;
-        this.currentState.leftPaddle.y = this.leftPaddle.y;
-        this.currentState.rightPaddle.y = this.rightPaddle.y;
-    }
-    
-    syncPreviousState(): void {
-        this.previousState.ball.x = this.currentState.ball.x;
-        this.previousState.ball.y = this.currentState.ball.y;
-        this.previousState.leftPaddle.y = this.currentState.leftPaddle.y;
-        this.previousState.rightPaddle.y = this.currentState.rightPaddle.y;
     }
 
     start(): void {
@@ -131,17 +86,15 @@ export class Game {
         this.lastHitPlayer = null;
         
         // Initialize states for tick-based simulation
-        this.currentTick = 0;
-        this.tickTimer = 0;
-        this.syncCurrentState();
-        this.syncPreviousState();
+        this.engine.resetStates();
+        this.engine.syncBothStatesForReset(this.ball, this.leftPaddle, this.rightPaddle);
 
         this.eventLogger.logServeEvent(
             this.ball.velocity,
             'left',
             this.leftPaddle.y + this.leftPaddle.height/2,
             this.rightPaddle.y + this.rightPaddle.height/2,
-            this.currentTick
+            this.engine.currentTick
         );
 
         (document.getElementById('startBtn') as HTMLButtonElement).disabled = true;
@@ -163,8 +116,7 @@ export class Game {
         this.lastHitPlayer = null;
         
         // Sync states after reset
-        this.syncCurrentState();
-        this.syncPreviousState();
+        this.engine.syncBothStatesForReset(this.ball, this.leftPaddle, this.rightPaddle);
 
         if (logEvent && this.mode === 'play') {
             this.eventLogger.logServeEvent(
@@ -172,7 +124,7 @@ export class Game {
                 servingSide,
                 this.leftPaddle.y + this.leftPaddle.height/2,
                 this.rightPaddle.y + this.rightPaddle.height/2,
-                this.currentTick
+                this.engine.currentTick
             );
         }
     }
@@ -191,10 +143,8 @@ export class Game {
         this.lastHitPlayer = null;
         
         // Reset tick-based simulation
-        this.currentTick = 0;
-        this.tickTimer = 0;
-        this.syncCurrentState();
-        this.syncPreviousState();
+        this.engine.resetStates();
+        this.engine.syncBothStatesForReset(this.ball, this.leftPaddle, this.rightPaddle);
 
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
@@ -240,10 +190,8 @@ export class Game {
         this.ball.position.y = this.canvas.height / 2;
         this.ball.velocity.x = 0;
         this.ball.velocity.y = 0;
-        this.currentTick = 0;
-        this.tickTimer = 0;
-        this.syncCurrentState();
-        this.syncPreviousState();
+        this.engine.resetStates();
+        this.engine.syncBothStatesForReset(this.ball, this.leftPaddle, this.rightPaddle);
 
         document.getElementById('modeIndicator')!.textContent = 'MODE: REPLAY';
         (document.getElementById('startBtn') as HTMLButtonElement).disabled = true;
@@ -349,193 +297,115 @@ export class Game {
         this.lastTime = currentTime;
         
         if (this.isRunning) {
-            // Accumulate time for tick-based physics
-            this.tickTimer += frameTime;
+            this.engine.processPhysicsTicks(
+                frameTime,
+                this.ball,
+                this.leftPaddle,
+                this.rightPaddle,
+                this.keys,
+                this.mode,
+                (result: CollisionResult) => {
+                    // Handle physics events from the engine
+                    if (result.leftHit) {
+                        this.lastHitPlayer = 'left';
+                        this.eventLogger.logHitEvent(
+                            this.ball.position,
+                            this.ball.velocity,
+                            'left',
+                            this.leftPaddle.y + this.leftPaddle.height/2,
+                            this.rightPaddle.y + this.rightPaddle.height/2,
+                            this.engine.currentTick
+                        );
+                    }
+                    
+                    if (result.rightHit) {
+                        this.lastHitPlayer = 'right';
+                        this.eventLogger.logHitEvent(
+                            this.ball.position,
+                            this.ball.velocity,
+                            'right',
+                            this.leftPaddle.y + this.leftPaddle.height/2,
+                            this.rightPaddle.y + this.rightPaddle.height/2,
+                            this.engine.currentTick
+                        );
+                    }
+                    
+                    if (result.ballOutOfBounds && result.scoringPlayer && this.mode === 'play') {
+                        this.eventLogger.logScoreEvent(
+                            this.ball.position,
+                            this.ball.velocity,
+                            result.scoringPlayer,
+                            this.engine.currentTick
+                        );
+
+                        if (result.scoringPlayer === 'left') {
+                            this.leftScore++;
+                        } else {
+                            this.rightScore++;
+                        }
+
+                        this.updateScore();
+
+                        if (this.leftScore >= this.maxScore || this.rightScore >= this.maxScore) {
+                            this.endGame();
+                        } else {
+                            const nextServer = result.scoringPlayer === 'left' ? 'right' : 'left';
+                            this.ball.reset(nextServer);
+                            this.lastHitPlayer = null;
+                            
+                            // Sync states after reset to prevent interpolation
+                            this.engine.syncBothStatesForReset(this.ball, this.leftPaddle, this.rightPaddle);
+
+                            this.eventLogger.logServeEvent(
+                                this.ball.velocity,
+                                nextServer,
+                                this.leftPaddle.y + this.leftPaddle.height/2,
+                                this.rightPaddle.y + this.rightPaddle.height/2,
+                                this.engine.currentTick
+                            );
+                        }
+                    }
+
+                }
+            );
             
-            // Run discrete physics ticks at exactly 60Hz - mathematically deterministic
-            while (this.tickTimer >= this.TICK_DURATION) {
-                // Save previous state before physics update
-                this.syncPreviousState();
+            // Handle replay mode separately
+            if (this.mode === 'replay') {
+                const ballStateChanged = this.replaySystem.updateTick(this.engine.currentTick, this.ball, this.leftPaddle, this.rightPaddle);
                 
-                // Update physics for one discrete tick with exact timing
-                this.updatePhysicsTick();
-                
-                // Update current state from game objects
-                this.syncCurrentState();
-                
-                // Increment tick counter (always integer, never floating point)
-                this.currentTick++;
-                
-                // Subtract exact tick duration to maintain precision
-                this.tickTimer -= this.TICK_DURATION;
+                if (ballStateChanged) {
+                    this.engine.syncCurrentState(this.ball, this.leftPaddle, this.rightPaddle);
+                }
+
+                const scoreEvent = this.replaySystem.getLastProcessedScoreEvent();
+                if (scoreEvent) {
+                    if (scoreEvent.player === 'left') {
+                        this.leftScore++;
+                    } else {
+                        this.rightScore++;
+                    }
+                    this.updateScore();
+                    
+                    this.engine.syncBothStatesForReset(this.ball, this.leftPaddle, this.rightPaddle);
+                    
+                    if (this.leftScore >= this.maxScore || this.rightScore >= this.maxScore) {
+                        this.replaySystem.stopReplay();
+                    }
+                }
+
+                if (!this.replaySystem.isActive) {
+                    this.endReplay();
+                }
             }
         }
         
-        // Calculate interpolation factor for smooth visual rendering
-        const alpha = this.isRunning ? (this.tickTimer / this.TICK_DURATION) : 0;
-        
         // Render with interpolation between physics states
-        this.renderInterpolated(alpha);
+        this.engine.renderInterpolated(this.ball, this.leftPaddle, this.rightPaddle, this.isRunning);
         this.animationId = requestAnimationFrame(this.gameLoop);
     }
     
-    updatePhysicsTick(): void {
-        if (this.mode === 'play') {
-            // Update paddles with exact tick duration for deterministic movement
-            this.leftPaddle.update(this.TICK_DURATION, this.keys);
-            this.rightPaddle.update(this.TICK_DURATION, this.keys);
-
-            // Check collisions before ball movement for precise detection
-            if (this.leftPaddle.checkCollision(this.ball)) {
-                this.lastHitPlayer = 'left';
-                this.eventLogger.logHitEvent(
-                    this.ball.position,
-                    this.ball.velocity,
-                    'left',
-                    this.leftPaddle.y + this.leftPaddle.height/2,
-                    this.rightPaddle.y + this.rightPaddle.height/2,
-                    this.currentTick
-                );
-            }
-
-            if (this.rightPaddle.checkCollision(this.ball)) {
-                this.lastHitPlayer = 'right';
-                this.eventLogger.logHitEvent(
-                    this.ball.position,
-                    this.ball.velocity,
-                    'right',
-                    this.leftPaddle.y + this.leftPaddle.height/2,
-                    this.rightPaddle.y + this.rightPaddle.height/2,
-                    this.currentTick
-                );
-            }
-
-            // Update ball with exact tick duration for deterministic physics
-            this.ball.update(this.TICK_DURATION);
-
-            if (this.ball.isOutOfBounds() && this.mode === 'play') {
-                const scoringPlayer = this.ball.getScoringPlayer();
-
-                this.eventLogger.logScoreEvent(
-                    this.ball.position,
-                    this.ball.velocity,
-                    scoringPlayer,
-                    this.currentTick
-                );
-
-                if (scoringPlayer === 'left') {
-                    this.leftScore++;
-                } else {
-                    this.rightScore++;
-                }
-
-                this.updateScore();
-
-                if (this.leftScore >= this.maxScore || this.rightScore >= this.maxScore) {
-                    this.endGame();
-                } else {
-                    const nextServer = scoringPlayer === 'left' ? 'right' : 'left';
-                    this.ball.reset(nextServer);
-                    this.lastHitPlayer = null;
-                    
-                    // Sync states after reset for smooth transition
-                    this.syncCurrentState();
-                    this.syncPreviousState();
-
-                    this.eventLogger.logServeEvent(
-                        this.ball.velocity,
-                        nextServer,
-                        this.leftPaddle.y + this.leftPaddle.height/2,
-                        this.rightPaddle.y + this.rightPaddle.height/2,
-                        this.currentTick
-                    );
-                }
-            }
-        } else if (this.mode === 'replay') {
-            // Update replay system and get whether ball state changed
-            const ballStateChanged = this.replaySystem.updateTick(this.currentTick, this.ball, this.leftPaddle, this.rightPaddle);
-            
-            // If ball state changed from an event, sync interpolation states
-            if (ballStateChanged) {
-                this.syncCurrentState();
-                this.syncPreviousState();
-            } else {
-                // Normal interpolated movement between events - advance ball physics
-                this.ball.update(this.TICK_DURATION);
-                // Update currentState after ball physics for smooth interpolation
-                this.syncCurrentState();
-            }
-
-            // Check if replay system processed a score event this tick
-            const scoreEvent = this.replaySystem.getLastProcessedScoreEvent();
-            if (scoreEvent) {
-                // Update score based on the event
-                if (scoreEvent.player === 'left') {
-                    this.leftScore++;
-                } else {
-                    this.rightScore++;
-                }
-                this.updateScore();
-                
-                // Sync states after score change for smooth transition
-                this.syncCurrentState();
-                this.syncPreviousState();
-                
-                // Check for game end immediately after processing the score event
-                if (this.leftScore >= this.maxScore || this.rightScore >= this.maxScore) {
-                    this.replaySystem.stopReplay();
-                }
-            }
-
-            if (!this.replaySystem.isActive) {
-                this.endReplay();
-            }
-        }
-    }
-
     render(): void {
-        this.ctx.fillStyle = '#111';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        this.ctx.strokeStyle = '#0f0';
-        this.ctx.setLineDash([GAME_CONSTANTS.DASH_LENGTH, GAME_CONSTANTS.DASH_LENGTH]);
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.canvas.width / 2, 0);
-        this.ctx.lineTo(this.canvas.width / 2, this.canvas.height);
-        this.ctx.stroke();
-        this.ctx.setLineDash([]);
-
-        this.leftPaddle.draw(this.ctx);
-        this.rightPaddle.draw(this.ctx);
-        this.ball.draw(this.ctx);
-    }
-    
-    renderInterpolated(alpha: number): void {
-        // Clear canvas
-        this.ctx.fillStyle = '#111';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Draw center line
-        this.ctx.strokeStyle = '#0f0';
-        this.ctx.setLineDash([GAME_CONSTANTS.DASH_LENGTH, GAME_CONSTANTS.DASH_LENGTH]);
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.canvas.width / 2, 0);
-        this.ctx.lineTo(this.canvas.width / 2, this.canvas.height);
-        this.ctx.stroke();
-        this.ctx.setLineDash([]);
-
-        // Interpolate positions for smooth rendering (always forward progression)
-        const ballX = this.previousState.ball.x + (this.currentState.ball.x - this.previousState.ball.x) * alpha;
-        const ballY = this.previousState.ball.y + (this.currentState.ball.y - this.previousState.ball.y) * alpha;
-        const leftPaddleY = this.previousState.leftPaddle.y + (this.currentState.leftPaddle.y - this.previousState.leftPaddle.y) * alpha;
-        const rightPaddleY = this.previousState.rightPaddle.y + (this.currentState.rightPaddle.y - this.previousState.rightPaddle.y) * alpha;
-        
-        // Draw paddles at interpolated positions
-        this.leftPaddle.drawAt(this.ctx, this.leftPaddle.x, leftPaddleY);
-        this.rightPaddle.drawAt(this.ctx, this.rightPaddle.x, rightPaddleY);
-        
-        // Draw ball at interpolated position
-        this.ball.drawAt(this.ctx, ballX, ballY);
+        this.engine.render(this.ball, this.leftPaddle, this.rightPaddle);
     }
 
     endGame(): void {
