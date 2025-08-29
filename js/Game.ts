@@ -5,6 +5,8 @@ import { ReplaySystem } from './ReplaySystem.ts';
 import { Engine, CollisionResult } from './Engine.ts';
 import { GameMode, KeyMap, FinalScores, PaddleSide } from './types.ts';
 import { GAME_CONSTANTS } from './constants.ts';
+import { GameUtils } from './GameUtils.ts';
+import { DOMUtils } from './DOMUtils.ts';
 
 export class Game {
     canvas: HTMLCanvasElement;
@@ -70,7 +72,7 @@ export class Game {
         if (this.mode === 'replay') {
             this.mode = 'play';
             this.replaySystem.stopReplay();
-            document.getElementById('modeIndicator')!.textContent = 'MODE: PLAY';
+            DOMUtils.setElementText('modeIndicator', 'MODE: PLAY');
         }
 
         this.isRunning = true;
@@ -97,9 +99,7 @@ export class Game {
             this.engine.currentTick
         );
 
-        (document.getElementById('startBtn') as HTMLButtonElement).disabled = true;
-        (document.getElementById('replayBtn') as HTMLButtonElement).disabled = true;
-        (document.getElementById('exportBtn') as HTMLButtonElement).disabled = true;
+        DOMUtils.setButtonsDisabled(['startBtn', 'replayBtn', 'exportBtn'], true);
 
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
@@ -134,12 +134,11 @@ export class Game {
         this.mode = 'play';
         this.leftScore = 0;
         this.rightScore = 0;
-        this.ball.position.x = this.canvas.width / 2;
-        this.ball.position.y = this.canvas.height / 2;
+        this.ball.position = GameUtils.getCanvasCenter(this.canvas);
         this.ball.velocity.x = 0;
         this.ball.velocity.y = 0;
-        this.leftPaddle.y = this.canvas.height / 2 - this.leftPaddle.height / 2;
-        this.rightPaddle.y = this.canvas.height / 2 - this.rightPaddle.height / 2;
+        this.leftPaddle.y = GameUtils.getPaddleCenterY(this.canvas);
+        this.rightPaddle.y = GameUtils.getPaddleCenterY(this.canvas);
         this.lastHitPlayer = null;
         
         // Reset tick-based simulation
@@ -152,8 +151,8 @@ export class Game {
         }
 
         this.updateScore();
-        (document.getElementById('startBtn') as HTMLButtonElement).disabled = false;
-        document.getElementById('modeIndicator')!.textContent = 'MODE: PLAY';
+        DOMUtils.setButtonDisabled('startBtn', false);
+        DOMUtils.setElementText('modeIndicator', 'MODE: PLAY');
 
         this.replaySystem.stopReplay();
 
@@ -161,14 +160,13 @@ export class Game {
             this.finalScores = null;
             this.eventLogger.reset();
             this.replaySystem.replayLogger.reset();
-            (document.getElementById('replayBtn') as HTMLButtonElement).disabled = true;
-            (document.getElementById('exportBtn') as HTMLButtonElement).disabled = true;
+            DOMUtils.setButtonsDisabled(['replayBtn', 'exportBtn'], true);
             // Clear file input to allow re-import of same file
-            (document.getElementById('fileInput') as HTMLInputElement).value = '';
+            DOMUtils.getInputElement('fileInput').value = '';
         } else {
             const hasEvents = this.eventLogger.events.length > 0;
-            (document.getElementById('replayBtn') as HTMLButtonElement).disabled = !hasEvents;
-            (document.getElementById('exportBtn') as HTMLButtonElement).disabled = !hasEvents;
+            DOMUtils.setButtonDisabled('replayBtn', !hasEvents);
+            DOMUtils.setButtonDisabled('exportBtn', !hasEvents);
         }
 
         this.render();
@@ -186,16 +184,14 @@ export class Game {
         this.updateScore();
         
         // Initialize ball to center and sync states
-        this.ball.position.x = this.canvas.width / 2;
-        this.ball.position.y = this.canvas.height / 2;
+        this.ball.position = GameUtils.getCanvasCenter(this.canvas);
         this.ball.velocity.x = 0;
         this.ball.velocity.y = 0;
         this.engine.resetStates();
         this.engine.syncBothStatesForReset(this.ball, this.leftPaddle, this.rightPaddle);
 
-        document.getElementById('modeIndicator')!.textContent = 'MODE: REPLAY';
-        (document.getElementById('startBtn') as HTMLButtonElement).disabled = true;
-        (document.getElementById('replayBtn') as HTMLButtonElement).disabled = true;
+        DOMUtils.setElementText('modeIndicator', 'MODE: REPLAY');
+        DOMUtils.setButtonsDisabled(['startBtn', 'replayBtn'], true);
 
         this.replaySystem.startReplay(this.eventLogger.events);
 
@@ -220,7 +216,7 @@ export class Game {
     }
 
     importLog(): void {
-        document.getElementById('fileInput')!.click();
+        DOMUtils.getElement('fileInput').click();
     }
 
     handleFileImport(event: { target: { files: File[] } }): void {
@@ -238,12 +234,10 @@ export class Game {
                     let leftScore = 0;
                     let rightScore = 0;
 
-                    const logDiv = document.getElementById('originalLogContent');
-                    if (logDiv) {
-                        logDiv.innerHTML = '';
-                        for (const event of events) {
-                            this.eventLogger.displayEvent(event, true, true); // Skip scroll and animation during import
-                        }
+                    const logDiv = DOMUtils.getElement('originalLogContent');
+                    logDiv.innerHTML = '';
+                    for (const event of events) {
+                        this.eventLogger.displayEvent(event, true, true); // Skip scroll and animation during import
                     }
 
                     for (const event of events) {
@@ -265,8 +259,7 @@ export class Game {
                     }
 
                     this.reset(false);
-                    (document.getElementById('replayBtn') as HTMLButtonElement).disabled = false;
-                    (document.getElementById('exportBtn') as HTMLButtonElement).disabled = false;
+                    DOMUtils.setButtonsDisabled(['replayBtn', 'exportBtn'], false);
                 } else {
                     alert('Failed to import game log. Invalid format.');
                 }
@@ -281,8 +274,8 @@ export class Game {
     }
 
     updateScore(): void {
-        document.getElementById('leftScore')!.textContent = this.leftScore.toString();
-        document.getElementById('rightScore')!.textContent = this.rightScore.toString();
+        DOMUtils.setElementText('leftScore', this.leftScore.toString());
+        DOMUtils.setElementText('rightScore', this.rightScore.toString());
     }
 
     gameLoop(currentTime: number = 0): void {
@@ -422,8 +415,7 @@ export class Game {
             alert(`ORIGINAL GAME\n${winner} PLAYER WINS!\nScore: ${this.leftScore} - ${this.rightScore}`);
             // Reset the game after showing the winner but keep the logs for replay
             this.reset(false);
-            (document.getElementById('replayBtn') as HTMLButtonElement).disabled = false;
-            (document.getElementById('exportBtn') as HTMLButtonElement).disabled = false;
+            DOMUtils.setButtonsDisabled(['replayBtn', 'exportBtn'], false);
         }, 100);
     }
 

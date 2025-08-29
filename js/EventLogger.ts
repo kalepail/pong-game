@@ -1,6 +1,7 @@
 import { Vec2 } from './Vec2.ts';
 import { GameEvent, ComparisonResult, PaddleSide, EventType, HitEvent, ServeEvent, ScoreEvent } from './types.ts';
 import { GAME_CONSTANTS } from './constants.ts';
+import { FormatUtils } from './FormatUtils.ts';
 
 export class EventLogger {
     events: GameEvent[];
@@ -73,8 +74,8 @@ export class EventLogger {
         console.log(`[${this.logElementId}] Event logged:`, {
             type: event.type,
             tick: event.tick,
-            pos: `(${Math.round(position.x)}, ${Math.round(position.y)})`,
-            vel: `(${Math.round(event.velocity.x)}, ${Math.round(event.velocity.y)})`,
+            pos: FormatUtils.formatPosition(position),
+            vel: FormatUtils.formatVelocity(event.velocity),
             player: event.player
         });
     }
@@ -89,13 +90,13 @@ export class EventLogger {
         switch (event.type) {
             case EventType.HIT:
             case EventType.SERVE:
-                paddleText = ` Pad(L:${Math.round(event.paddlePositions.left)}, R:${Math.round(event.paddlePositions.right)})`;
+                paddleText = ` Pad(L:${FormatUtils.roundCoordinate(event.paddlePositions.left)}, R:${FormatUtils.roundCoordinate(event.paddlePositions.right)})`;
                 if (event.type === EventType.HIT) {
-                    posText = `Pos(${Math.round(event.position.x)}, ${Math.round(event.position.y)}) `;
+                    posText = `Pos${FormatUtils.formatPosition(event.position)} `;
                 }
                 break;
             case EventType.SCORE:
-                posText = `Pos(${Math.round(event.position.x)}, ${Math.round(event.position.y)}) `;
+                posText = `Pos${FormatUtils.formatPosition(event.position)} `;
                 break;
         }
             
@@ -111,9 +112,9 @@ export class EventLogger {
         }
         // For hit events, direction is correct (who hit)
         
-        const headerLine = `[${event.tick}, ${event.type.toUpperCase()}, ${direction}]`;
+        const headerLine = `[${FormatUtils.formatTick(event.tick)}, ${event.type.toUpperCase()}, ${direction}]`;
         const dataLine = posText +
-                         `Vel(${Math.round(event.velocity.x)}, ${Math.round(event.velocity.y)})` +
+                         `Vel${FormatUtils.formatVelocity(event.velocity)}` +
                          paddleText;
 
         const eventElement = document.createElement('div');

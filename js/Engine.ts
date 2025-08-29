@@ -2,6 +2,7 @@ import { Ball } from './Ball.ts';
 import { Paddle } from './Paddle.ts';
 import { GameMode, KeyMap, PaddleSide } from './types.ts';
 import { GAME_CONSTANTS, DERIVED_CONSTANTS } from './constants.ts';
+import { GameUtils } from './GameUtils.ts';
 
 export interface PhysicsState {
     ball: { x: number; y: number };
@@ -35,15 +36,19 @@ export class Engine {
         this.ctx = canvas.getContext('2d')!;
         
         // Initialize current and previous states
+        const centerX = GameUtils.getCanvasCenterX(canvas);
+        const centerY = GameUtils.getCanvasCenterY(canvas);
+        const paddleCenterY = GameUtils.getPaddleCenterY(canvas);
+        
         this.currentState = {
-            ball: { x: canvas.width / 2, y: canvas.height / 2 },
-            leftPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 },
-            rightPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 }
+            ball: { x: centerX, y: centerY },
+            leftPaddle: { y: paddleCenterY },
+            rightPaddle: { y: paddleCenterY }
         };
         this.previousState = {
-            ball: { x: canvas.width / 2, y: canvas.height / 2 },
-            leftPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 },
-            rightPaddle: { y: canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 }
+            ball: { x: centerX, y: centerY },
+            leftPaddle: { y: paddleCenterY },
+            rightPaddle: { y: paddleCenterY }
         };
     }
     
@@ -74,9 +79,9 @@ export class Engine {
         this.currentTick = 0;
         this.tickTimer = 0;
         
-        const centerX = this.canvas.width / 2;
-        const centerY = this.canvas.height / 2;
-        const paddleY = centerY - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
+        const centerX = GameUtils.getCanvasCenterX(this.canvas);
+        const centerY = GameUtils.getCanvasCenterY(this.canvas);
+        const paddleY = GameUtils.getPaddleCenterY(this.canvas);
         
         this.currentState.ball.x = centerX;
         this.currentState.ball.y = centerY;
@@ -188,8 +193,9 @@ export class Engine {
         this.ctx.strokeStyle = '#0f0';
         this.ctx.setLineDash([GAME_CONSTANTS.DASH_LENGTH, GAME_CONSTANTS.DASH_LENGTH]);
         this.ctx.beginPath();
-        this.ctx.moveTo(this.canvas.width / 2, 0);
-        this.ctx.lineTo(this.canvas.width / 2, this.canvas.height);
+        const centerX = GameUtils.getCanvasCenterX(this.canvas);
+        this.ctx.moveTo(centerX, 0);
+        this.ctx.lineTo(centerX, this.canvas.height);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
 
@@ -214,8 +220,9 @@ export class Engine {
         this.ctx.strokeStyle = '#0f0';
         this.ctx.setLineDash([GAME_CONSTANTS.DASH_LENGTH, GAME_CONSTANTS.DASH_LENGTH]);
         this.ctx.beginPath();
-        this.ctx.moveTo(this.canvas.width / 2, 0);
-        this.ctx.lineTo(this.canvas.width / 2, this.canvas.height);
+        const centerX = GameUtils.getCanvasCenterX(this.canvas);
+        this.ctx.moveTo(centerX, 0);
+        this.ctx.lineTo(centerX, this.canvas.height);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
 
@@ -287,12 +294,12 @@ export class Engine {
         const distance = targetY - currentY;
         
         if (Math.abs(distance) < paddleSpeed * deltaTime) {
-            paddle.y = Math.max(0, Math.min(this.canvas.height - paddle.height, targetY));
+            paddle.y = GameUtils.clampPaddleY(targetY, this.canvas);
             return { reached: true };
         } else {
             const direction = Math.sign(distance);
             const newY = currentY + direction * paddleSpeed * deltaTime;
-            paddle.y = Math.max(0, Math.min(this.canvas.height - paddle.height, newY));
+            paddle.y = GameUtils.clampPaddleY(newY, this.canvas);
             return { reached: false };
         }
     }
@@ -307,7 +314,7 @@ export class Engine {
             : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT;
         
         const ballHitY = this.predictBallY(paddleFaceX, ball);
-        if (ballHitY === null) return { targetY: this.canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 };
+        if (ballHitY === null) return { targetY: GameUtils.getPaddleCenterY(this.canvas) };
         
         const ballTop = ballHitY - ball.radius;
         const ballBottom = ballHitY + ball.radius;
@@ -321,7 +328,7 @@ export class Engine {
         const avoidBelow = maxCatchY + safetyMargin;
         
         if (currentPaddleY === null) {
-            currentPaddleY = this.canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
+            currentPaddleY = GameUtils.getPaddleCenterY(this.canvas);
         }
         
         let targetY: number;
@@ -342,7 +349,7 @@ export class Engine {
             targetY = distanceFromTop > distanceFromBottom ? 0 : this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT;
         }
         
-        targetY = Math.max(0, Math.min(this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT, targetY));
+        targetY = GameUtils.clampPaddleY(targetY, this.canvas);
         
         return { targetY };
     }

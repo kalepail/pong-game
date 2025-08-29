@@ -1,6 +1,8 @@
 import { Vec2 } from './Vec2.ts';
 import { PaddleSide, KeyMap } from './types.ts';
 import { GAME_CONSTANTS } from './constants.ts';
+import { GameUtils } from './GameUtils.ts';
+import { PhysicsUtils } from './PhysicsUtils.ts';
 
 export class Paddle {
     canvas: HTMLCanvasElement;
@@ -17,7 +19,7 @@ export class Paddle {
         this.width = GAME_CONSTANTS.PADDLE_WIDTH;
         this.height = GAME_CONSTANTS.PADDLE_HEIGHT;
         this.x = x;
-        this.y = canvas.height / 2 - this.height / 2;
+        this.y = GameUtils.getPaddleCenterY(canvas);
         this.side = side;
         this.velocity = 0;
         this.speed = GAME_CONSTANTS.PADDLE_SPEED;
@@ -42,7 +44,7 @@ export class Paddle {
             }
         }
         
-        this.y = Math.max(0, Math.min(this.canvas.height - this.height, this.y));
+        this.y = GameUtils.clampPaddleY(this.y, this.canvas);
         this.velocity = (this.y - prevY) / deltaTime;
     }
 
@@ -59,20 +61,16 @@ export class Paddle {
         const ballBottom = ball.position.y + ballRadius;
         
         if (ballBottom >= paddleTop && ballTop <= paddleBottom) {
-            const hitPosition = Math.max(0, Math.min(1, (ball.position.y - paddleTop) / this.height));
-            const normalizedPosition = Math.max(
-                -GAME_CONSTANTS.NORMALIZED_POSITION_LIMIT, 
-                Math.min(GAME_CONSTANTS.NORMALIZED_POSITION_LIMIT, 2 * hitPosition - 1)
-            );
-            const maxBounceAngle = GAME_CONSTANTS.MAX_BOUNCE_ANGLE;
-            const bounceAngle = normalizedPosition * maxBounceAngle;
+            const hitPosition = PhysicsUtils.calculateHitPosition(ball.position.y, paddleTop, this.height);
+            const normalizedPosition = PhysicsUtils.calculateNormalizedPosition(hitPosition);
+            const bounceAngle = PhysicsUtils.calculateBounceAngle(normalizedPosition);
             
             const approachSpeed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.y ** 2);
-            const speed = approachSpeed * GAME_CONSTANTS.BALL_SPEED_INCREASE_FACTOR;
+            const speed = PhysicsUtils.calculatePostCollisionSpeed(approachSpeed);
             
             ball.velocity.x = (this.side === 'left' ? 1 : -1) * Math.cos(bounceAngle) * speed;
             ball.velocity.y = Math.sin(bounceAngle) * speed;
-            ball.velocity.y += this.velocity * GAME_CONSTANTS.PADDLE_VELOCITY_TRANSFER;
+            ball.velocity.y = PhysicsUtils.applyPaddleVelocityTransfer(ball.velocity.y, this.velocity);
             
             ball.position.x = paddleFaceX + (this.side === 'left' ? ballRadius : -ballRadius);
             ball.position.y = ball.position.y;
@@ -94,7 +92,7 @@ export class Paddle {
     }
 
     reset(): void {
-        this.y = this.canvas.height / 2 - this.height / 2;
+        this.y = GameUtils.getPaddleCenterY(this.canvas);
         this.velocity = 0;
     }
 }

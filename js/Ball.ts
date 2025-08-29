@@ -1,6 +1,7 @@
 import { Vec2 } from './Vec2.ts';
 import { PaddleSide } from './types.ts';
 import { GAME_CONSTANTS } from './constants.ts';
+import { GameUtils } from './GameUtils.ts';
 
 export class Ball {
     canvas: HTMLCanvasElement;
@@ -11,15 +12,12 @@ export class Ball {
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.radius = GAME_CONSTANTS.BALL_RADIUS;
-        this.position = new Vec2(canvas.width / 2, canvas.height / 2);
+        this.position = GameUtils.getCanvasCenter(canvas);
         this.velocity = new Vec2(0, 0);
     }
 
     reset(servingSide: PaddleSide = 'left'): void {
-        this.position = new Vec2(
-            this.canvas.width / 2,
-            this.canvas.height / 2
-        );
+        this.position = GameUtils.getCanvasCenter(this.canvas);
         const baseAngle = servingSide === 'left' ? 0 : Math.PI;
         const angleVariation = (Math.random() * GAME_CONSTANTS.BALL_SERVE_ANGLE_VARIATION - GAME_CONSTANTS.BALL_SERVE_ANGLE_VARIATION / 2);
         const angle = baseAngle + angleVariation;
