@@ -30,6 +30,7 @@ export class ReplaySystem {
     replayLogger: EventLogger;
     paddleTargets: PaddleTargets;
     pendingMoves: PendingMoves;
+    lastProcessedScoreEvent: GameEvent | null;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -41,6 +42,7 @@ export class ReplaySystem {
         this.replayLogger = new EventLogger('replayLogContent');
         this.paddleTargets = { left: null, right: null };
         this.pendingMoves = { left: null, right: null };
+        this.lastProcessedScoreEvent = null;
     }
 
     calculateBallY(targetX: number, ball: { position: Vec2; velocity: Vec2; radius: number }): number | null {
@@ -335,6 +337,7 @@ export class ReplaySystem {
         this.isActive = true;
         this.replayLogger.reset();
         this.pendingMoves = { left: null, right: null };
+        this.lastProcessedScoreEvent = null;
 
         if (this.events.length > 0) {
             const firstEvent = this.events[0];
@@ -353,6 +356,9 @@ export class ReplaySystem {
 
     updateTick(currentTick: number, ball: Ball, leftPaddle: Paddle, rightPaddle: Paddle): boolean {
         if (!this.isActive || this.events.length === 0) return false;
+
+        // Clear the last processed score event at the start of each tick
+        this.lastProcessedScoreEvent = null;
 
         // Check for upcoming score events and set up avoidance moves BEFORE moving paddles
         this.setupScoreAvoidance(ball, leftPaddle, rightPaddle);
@@ -412,6 +418,8 @@ export class ReplaySystem {
                         event.player,
                         event.tick
                     );
+                    // Track the score event for the Game to process
+                    this.lastProcessedScoreEvent = event;
                     break;
             }
 
@@ -441,5 +449,9 @@ export class ReplaySystem {
     stopReplay(): void {
         this.isActive = false;
         this.currentEventIndex = 0;
+    }
+
+    getLastProcessedScoreEvent(): GameEvent | null {
+        return this.lastProcessedScoreEvent;
     }
 }

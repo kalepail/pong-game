@@ -483,26 +483,15 @@ export class Game {
                 this.syncCurrentState();
             }
 
-            const allScores = this.replaySystem.events
-                .slice(0, this.replaySystem.currentEventIndex)
-                .filter(e => e.type === 'score');
-
-            let leftPoints = 0;
-            let rightPoints = 0;
-
-            for (const scoreEvent of allScores) {
+            // Check if replay system processed a score event this tick
+            const scoreEvent = this.replaySystem.getLastProcessedScoreEvent();
+            if (scoreEvent) {
+                // Update score based on the event
                 if (scoreEvent.player === 'left') {
-                    leftPoints++;
+                    this.leftScore++;
                 } else {
-                    rightPoints++;
+                    this.rightScore++;
                 }
-            }
-
-            // Check for score change and sync states
-            const scoreChanged = leftPoints !== this.leftScore || rightPoints !== this.rightScore;
-            if (scoreChanged) {
-                this.leftScore = leftPoints;
-                this.rightScore = rightPoints;
                 this.updateScore();
                 
                 // Sync states after score change for smooth transition
