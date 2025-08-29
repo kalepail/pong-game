@@ -1,13 +1,40 @@
 import { Vec2 } from './Vec2.ts';
 
-export interface GameEvent {
-    type: 'hit' | 'serve' | 'score';
-    timestamp: number;
-    position: Vec2;
-    velocity: Vec2;
-    player: string | null;
-    targetPaddlePosition: Vec2 | null;
+export enum EventType {
+    HIT = 'hit',
+    SERVE = 'serve',
+    SCORE = 'score'
 }
+
+interface BaseEvent {
+    tick: number;
+    velocity: Vec2;
+    player: PaddleSide;
+}
+
+export interface HitEvent extends BaseEvent {
+    type: EventType.HIT;
+    position: Vec2;
+    paddlePositions: {
+        left: number;
+        right: number;
+    };
+}
+
+export interface ServeEvent extends BaseEvent {
+    type: EventType.SERVE;
+    paddlePositions: {
+        left: number;
+        right: number;
+    };
+}
+
+export interface ScoreEvent extends BaseEvent {
+    type: EventType.SCORE;
+    position: Vec2;
+}
+
+export type GameEvent = HitEvent | ServeEvent | ScoreEvent;
 
 export interface ComparisonResult {
     original: number;
@@ -19,7 +46,7 @@ export interface ComparisonResult {
 export interface FinalScores {
     left: number;
     right: number;
-    winner: string;
+    winner: PaddleSide;
 }
 
 export type GameMode = 'play' | 'replay';
@@ -34,7 +61,6 @@ export interface Ball {
 }
 
 export interface Paddle {
-    x: number;
     y: number;
     width: number;
     height: number;

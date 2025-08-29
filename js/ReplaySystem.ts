@@ -1,6 +1,7 @@
 import { EventLogger } from './EventLogger.ts';
-import { GameEvent, Ball, Paddle } from './types.ts';
+import { GameEvent, Ball, Paddle, PaddleSide, EventType, HitEvent } from './types.ts';
 import { Vec2 } from './Vec2.ts';
+import { GAME_CONSTANTS, REPLAY_CONFIG, DERIVED_CONSTANTS } from './constants.ts';
 
 interface PendingMove {
     targetY: number;
@@ -10,8 +11,8 @@ interface PendingMove {
 }
 
 interface PaddleTargets {
-    left: Vec2 | null;
-    right: Vec2 | null;
+    left: number | null;
+    right: number | null;
 }
 
 interface PendingMoves {
@@ -23,7 +24,6 @@ export class ReplaySystem {
     canvas: HTMLCanvasElement;
     events: GameEvent[];
     currentEventIndex: number;
-    replayStartTime: number | null;
     isActive: boolean;
     ballPosition: Vec2 | null;
     ballVelocity: Vec2 | null;
@@ -35,7 +35,6 @@ export class ReplaySystem {
         this.canvas = canvas;
         this.events = [];
         this.currentEventIndex = 0;
-        this.replayStartTime = null;
         this.isActive = false;
         this.ballPosition = null;
         this.ballVelocity = null;
@@ -48,7 +47,7 @@ export class ReplaySystem {
         const dx = targetX - ball.position.x;
         const vx = ball.velocity.x;
         
-        if (Math.abs(vx) < 0.001 || (dx * vx) < 0) return null;
+        if (Math.abs(vx) < REPLAY_CONFIG.VELOCITY_TOLERANCE || (dx * vx) < 0) return null;
         
         const time = dx / vx;
         let y = ball.position.y + ball.velocity.y * time;
@@ -70,14 +69,13 @@ export class ReplaySystem {
         return y;
     }
 
-    paddleWouldIntercept(ball: { position: Vec2; velocity: Vec2; radius: number }, side: 'left' | 'right', currentPaddleY: number): boolean {
-        const paddleHeight = 80;
-        const paddleWidth = 10;
-        const paddleOffset = side === 'left' ? 30 : this.canvas.width - 40;
-        
-        const paddleFaceX = side === 'left' ? paddleOffset + paddleWidth : paddleOffset;
+    paddleWouldIntercept(ball: { position: Vec2; velocity: Vec2; radius: number }, side: PaddleSide, currentPaddleY: number): boolean {
+        // Remove paddle width from collision calculations - it's visual only
+        const paddleFaceX = side === 'left' 
+            ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
+            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT(this.canvas.width);
         const paddleTop = currentPaddleY;
-        const paddleBottom = currentPaddleY + paddleHeight;
+        const paddleBottom = currentPaddleY + GAME_CONSTANTS.PADDLE_HEIGHT;
         
         const ballY = this.calculateBallY(paddleFaceX, ball);
         if (ballY === null) return false;
@@ -88,55 +86,53 @@ export class ReplaySystem {
         return ballBottom >= paddleTop && ballTop <= paddleBottom;
     }
 
-    calculateMissPosition(ball: { position: Vec2; velocity: Vec2; radius: number }, missingSide: 'left' | 'right', currentPaddleY: number | null = null): { targetY: number } {
-        const paddleHeight = 80;
-        const paddleWidth = 10;
-        const paddleOffset = missingSide === 'left' ? 30 : this.canvas.width - 40;
-        
-        const paddleFaceX = missingSide === 'left' ? paddleOffset + paddleWidth : paddleOffset;
+    calculateMissPosition(ball: { position: Vec2; velocity: Vec2; radius: number }, missingSide: PaddleSide, currentPaddleY: number | null = null): { targetY: number } {
+        const paddleFaceX = missingSide === 'left' 
+            ? DERIVED_CONSTANTS.PADDLE_FACE_X_LEFT 
+            : DERIVED_CONSTANTS.PADDLE_FACE_X_RIGHT(this.canvas.width);
         
         const ballHitY = this.calculateBallY(paddleFaceX, ball);
-        if (ballHitY === null) return { targetY: this.canvas.height / 2 - paddleHeight / 2 };
+        if (ballHitY === null) return { targetY: this.canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2 };
         
         const ballTop = ballHitY - ball.radius;
         const ballBottom = ballHitY + ball.radius;
         
-        const minCatchY = ballTop - paddleHeight;
+        const minCatchY = ballTop - GAME_CONSTANTS.PADDLE_HEIGHT;
         const maxCatchY = ballBottom;
         
-        const safetyMargin = paddleHeight * 0.2;
+        const safetyMargin = DERIVED_CONSTANTS.SAFETY_MARGIN;
         
         const avoidAbove = minCatchY - safetyMargin;
         const avoidBelow = maxCatchY + safetyMargin;
         
         if (currentPaddleY === null) {
-            currentPaddleY = this.canvas.height / 2 - paddleHeight / 2;
+            currentPaddleY = this.canvas.height / 2 - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
         }
         
         let targetY: number;
         
         if (avoidAbove >= 0) {
-            if (avoidBelow + paddleHeight <= this.canvas.height) {
+            if (avoidBelow + GAME_CONSTANTS.PADDLE_HEIGHT <= this.canvas.height) {
                 const distanceAbove = Math.abs(currentPaddleY - avoidAbove);
                 const distanceBelow = Math.abs(currentPaddleY - avoidBelow);
                 targetY = distanceAbove <= distanceBelow ? avoidAbove : avoidBelow;
             } else {
                 targetY = avoidAbove;
             }
-        } else if (avoidBelow + paddleHeight <= this.canvas.height) {
+        } else if (avoidBelow + GAME_CONSTANTS.PADDLE_HEIGHT <= this.canvas.height) {
             targetY = avoidBelow;
         } else {
             const distanceFromTop = Math.abs(ballHitY - 0);
             const distanceFromBottom = Math.abs(ballHitY - this.canvas.height);
-            targetY = distanceFromTop > distanceFromBottom ? 0 : this.canvas.height - paddleHeight;
+            targetY = distanceFromTop > distanceFromBottom ? 0 : this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT;
         }
         
-        targetY = Math.max(0, Math.min(this.canvas.height - paddleHeight, targetY));
+        targetY = Math.max(0, Math.min(this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT, targetY));
         
         return { targetY };
     }
 
-    calculateOptimalPaddlePosition(hitEvent: GameEvent, paddleHeight: number): { paddleTop: number; hitPosition: number; collisionPoint: { x: number; y: number } } {
+    calculateOptimalPaddlePosition(hitEvent: HitEvent, paddleHeight: number): { paddleTop: number; hitPosition: number; collisionPoint: { y: number } } {
         const collisionY = hitEvent.position.y;
         
         const targetVx = hitEvent.velocity.x;
@@ -144,8 +140,11 @@ export class ReplaySystem {
         
         const requiredAngle = Math.atan2(targetVy, Math.abs(targetVx));
         
-        const maxBounceAngle = Math.PI / 3;
-        const normalizedPosition = Math.max(-0.8, Math.min(0.8, requiredAngle / maxBounceAngle));
+        const maxBounceAngle = GAME_CONSTANTS.MAX_BOUNCE_ANGLE;
+        const normalizedPosition = Math.max(
+            GAME_CONSTANTS.MIN_NORMALIZED_POSITION, 
+            Math.min(GAME_CONSTANTS.MAX_NORMALIZED_POSITION, requiredAngle / maxBounceAngle)
+        );
         const hitPosition = (normalizedPosition + 1) / 2;
         
         const paddleTop = collisionY - (hitPosition * paddleHeight);
@@ -153,40 +152,145 @@ export class ReplaySystem {
         return {
             paddleTop: paddleTop,
             hitPosition: hitPosition,
-            collisionPoint: { x: hitEvent.position.x, y: collisionY }
+            collisionPoint: { y: collisionY }
         };
     }
 
-    analyzeUpcomingEvents(ball: { position: Vec2; velocity: Vec2; radius: number }, leftPaddle: Paddle, rightPaddle: Paddle): void {
+    calculateEventMovements(event: GameEvent, ball: Ball, leftPaddle: Paddle, rightPaddle: Paddle): void {
+        
+        switch (event.type) {
+            case EventType.HIT: {
+                const hitPlayer = event.player;
+                const otherPlayer = hitPlayer === 'left' ? 'right' : 'left';
+                
+                // Clear the hitting paddle's current move (they just hit)
+                this.pendingMoves[hitPlayer] = null;
+                
+                // Find the next hit by the other player to position for preemptively
+                for (let i = this.currentEventIndex + 1; i < this.events.length; i++) {
+                    const nextEvent = this.events[i];
+                    if (nextEvent.type === EventType.HIT && nextEvent.player === otherPlayer) {
+                        // Position hitting paddle for their next hit after opponent's hit
+                        // Convert from recorded center position to top position
+                        const preemptiveY = nextEvent.paddlePositions[hitPlayer] - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
+                        const clampedY = Math.max(0, Math.min(this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT, preemptiveY));
+                        
+                        this.pendingMoves[hitPlayer] = {
+                            targetY: clampedY,
+                            eventIndex: i,
+                            type: 'position_for_next_hit',
+                            executed: false
+                        };
+                        break;
+                    }
+                }
+                
+                // Position the other paddle for the current hit (catch move) if they don't have a move
+                if (!this.pendingMoves[otherPlayer]) {
+                    // Look for the next hit by this other player
+                    for (let i = this.currentEventIndex + 1; i < this.events.length; i++) {
+                        const nextEvent = this.events[i];
+                        if (nextEvent.type === EventType.HIT && nextEvent.player === otherPlayer) {
+                            const optimalPosition = this.calculateOptimalPaddlePosition(nextEvent, GAME_CONSTANTS.PADDLE_HEIGHT);
+                            
+                            this.pendingMoves[otherPlayer] = {
+                                targetY: optimalPosition.paddleTop,
+                                eventIndex: i,
+                                type: 'hit',
+                                executed: false
+                            };
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+            
+            case EventType.SERVE: {
+                // Clear all pending moves on serve
+                this.pendingMoves['left'] = null;
+                this.pendingMoves['right'] = null;
+                
+                const servingPlayer = event.player;
+                const receivingPlayer = servingPlayer === 'left' ? 'right' : 'left';
+                
+                // Position both players for upcoming hits
+                for (let i = this.currentEventIndex + 1; i < this.events.length; i++) {
+                    const nextEvent = this.events[i];
+                    if (nextEvent.type === EventType.HIT && nextEvent.player === receivingPlayer) {
+                        // Position receiving player for the hit
+                        const optimalPosition = this.calculateOptimalPaddlePosition(nextEvent, GAME_CONSTANTS.PADDLE_HEIGHT);
+                        this.pendingMoves[receivingPlayer] = {
+                            targetY: optimalPosition.paddleTop,
+                            eventIndex: i,
+                            type: 'hit',
+                            executed: false
+                        };
+                        
+                        // Position serving player for their next hit after receiver hits
+                        // Convert from recorded center position to top position
+                        const preemptiveY = nextEvent.paddlePositions[servingPlayer] - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
+                        const clampedY = Math.max(0, Math.min(this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT, preemptiveY));
+                        this.pendingMoves[servingPlayer] = {
+                            targetY: clampedY,
+                            eventIndex: i,
+                            type: 'position_for_serve_followup',
+                            executed: false
+                        };
+                        break;
+                    }
+                }
+                break;
+            }
+            
+            case EventType.SCORE: {
+                // Score avoidance is now handled proactively in setupScoreAvoidance()
+                // Just clear the missing paddle's move since score has occurred
+                const ballMovingLeft = this.ballVelocity!.x < 0;
+                const missingSide = ballMovingLeft ? 'left' : 'right';
+                
+                // Clear any pending move for the missing side since score has happened
+                this.pendingMoves[missingSide] = null;
+                break;
+            }
+        }
+    }
+
+    setupScoreAvoidance(ball: Ball, leftPaddle: Paddle, rightPaddle: Paddle): void {
+        // Look for upcoming score events and set up avoidance moves ONLY when paddle should miss
         for (let i = this.currentEventIndex; i < this.events.length; i++) {
             const event = this.events[i];
             
-            if (event.type === 'hit') {
-                const side = event.player as 'left' | 'right';
-                
-                if (!this.pendingMoves[side]) {
-                    const paddleHeight = 80;
-                    const optimalPosition = this.calculateOptimalPaddlePosition(event, paddleHeight);
-                    
-                    this.pendingMoves[side] = {
-                        targetY: optimalPosition.paddleTop,
-                        eventIndex: i,
-                        type: 'hit',
-                        executed: false
-                    };
-                }
-                break;
-
-            } else if (event.type === 'score') {
+            if (event.type === EventType.SCORE) {
                 const ballMovingLeft = ball.velocity.x < 0;
                 const missingSide = ballMovingLeft ? 'left' : 'right';
+                const currentPaddle = missingSide === 'left' ? leftPaddle : rightPaddle;
                 
-                if (!this.pendingMoves[missingSide]) {
-                    const currentPaddle = missingSide === 'left' ? leftPaddle : rightPaddle;
-                    const needsToMove = this.paddleWouldIntercept(ball, missingSide, currentPaddle.y);
+                // Check if there's a HIT event by this paddle before the SCORE
+                let shouldHit = false;
+                for (let j = this.currentEventIndex; j < i; j++) {
+                    const checkEvent = this.events[j];
+                    if (checkEvent.type === EventType.HIT && checkEvent.player === missingSide) {
+                        shouldHit = true;
+                        break;
+                    }
+                }
+                
+                // Only set up miss avoidance if paddle is NOT supposed to hit
+                if (!shouldHit) {
+                    // Check if paddle would interfere with score from current position
+                    const wouldInterceptCurrent = this.paddleWouldIntercept(ball, missingSide, currentPaddle.y);
                     
-                    if (needsToMove) {
-                        const missPosition = this.calculateMissPosition(ball, missingSide, currentPaddle.y);
+                    // If paddle has a pending move, check if that target position would also interfere
+                    let wouldInterceptTarget = false;
+                    if (this.pendingMoves[missingSide]) {
+                        wouldInterceptTarget = this.paddleWouldIntercept(ball, missingSide, this.pendingMoves[missingSide]!.targetY);
+                    }
+                    
+                    // If paddle would interfere from current OR target position, force it to dodge
+                    if (wouldInterceptCurrent || wouldInterceptTarget) {
+                        const basePosition = this.pendingMoves[missingSide]?.targetY ?? currentPaddle.y;
+                        const missPosition = this.calculateMissPosition(ball, missingSide, basePosition);
                         
                         this.pendingMoves[missingSide] = {
                             targetY: missPosition.targetY,
@@ -196,18 +300,18 @@ export class ReplaySystem {
                         };
                     }
                 }
-                break;
+                break; // Only handle first upcoming score
             }
         }
     }
 
     movePaddle(paddle: Paddle, deltaTime: number): void {
-        const pendingMove = this.pendingMoves[paddle.side as 'left' | 'right'];
+        const pendingMove = this.pendingMoves[paddle.side];
         if (!pendingMove) return;
         
         const targetY = pendingMove.targetY;
         const currentY = paddle.y;
-        const paddleSpeed = 400;
+        const paddleSpeed = GAME_CONSTANTS.PADDLE_SPEED;
         
         const distance = targetY - currentY;
         
@@ -216,7 +320,7 @@ export class ReplaySystem {
             pendingMove.executed = true;
             
             if (pendingMove.type === 'position_for_next_hit' || pendingMove.type === 'position_for_serve_followup') {
-                this.pendingMoves[paddle.side as 'left' | 'right'] = null;
+                this.pendingMoves[paddle.side] = null;
             }
         } else {
             const direction = Math.sign(distance);
@@ -228,113 +332,110 @@ export class ReplaySystem {
     startReplay(events: GameEvent[]): void {
         this.events = [...events];
         this.currentEventIndex = 0;
-        this.replayStartTime = Date.now();
         this.isActive = true;
         this.replayLogger.reset();
         this.pendingMoves = { left: null, right: null };
 
         if (this.events.length > 0) {
             const firstEvent = this.events[0];
-            this.ballPosition = { ...firstEvent.position };
+            switch (firstEvent.type) {
+                case EventType.HIT:
+                case EventType.SCORE:
+                    this.ballPosition = { ...firstEvent.position };
+                    break;
+                case EventType.SERVE:
+                    this.ballPosition = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+                    break;
+            }
             this.ballVelocity = { ...firstEvent.velocity };
         }
     }
 
-    update(deltaTime: number, ball: Ball, leftPaddle: Paddle, rightPaddle: Paddle): void {
-        if (!this.isActive || this.events.length === 0) return;
+    updateTick(currentTick: number, ball: Ball, leftPaddle: Paddle, rightPaddle: Paddle): boolean {
+        if (!this.isActive || this.events.length === 0) return false;
 
-        const currentTime = Date.now() - this.replayStartTime!;
+        // Check for upcoming score events and set up avoidance moves BEFORE moving paddles
+        this.setupScoreAvoidance(ball, leftPaddle, rightPaddle);
 
-        this.analyzeUpcomingEvents(ball, leftPaddle, rightPaddle);
+        this.movePaddle(leftPaddle, GAME_CONSTANTS.TICK_DURATION); // Exact tick duration for deterministic paddle movement
+        this.movePaddle(rightPaddle, GAME_CONSTANTS.TICK_DURATION);
 
-        this.movePaddle(leftPaddle, deltaTime);
-        this.movePaddle(rightPaddle, deltaTime);
+        let ballStateChanged = false;
 
-        while (this.currentEventIndex < this.events.length &&
-               this.events[this.currentEventIndex].timestamp <= currentTime) {
-
+        // Process events that should occur at this tick
+        while (this.currentEventIndex < this.events.length) {
             const event = this.events[this.currentEventIndex];
-            this.ballPosition = { ...event.position };
-            this.ballVelocity = { ...event.velocity };
+            
+            if (event.tick > currentTick) break;
 
-            if (event.type === 'hit') {
-                this.pendingMoves[event.player as 'left' | 'right'] = null;
-                
-                const currentPlayer = event.player as 'left' | 'right';
-                const otherPlayer = currentPlayer === 'left' ? 'right' : 'left';
-                
-                for (let i = this.currentEventIndex + 1; i < this.events.length; i++) {
-                    const nextEvent = this.events[i];
-                    if (nextEvent.type === 'hit' && nextEvent.player === otherPlayer && nextEvent.targetPaddlePosition) {
-                        const paddleHeight = 80;
-                        const targetY = nextEvent.targetPaddlePosition.y - paddleHeight / 2;
-                        const clampedTargetY = Math.max(0, Math.min(this.canvas.height - paddleHeight, targetY));
-                        
-                        this.pendingMoves[currentPlayer] = {
-                            targetY: clampedTargetY,
-                            eventIndex: i,
-                            type: 'position_for_next_hit',
-                            executed: false
-                        };
-                        break;
-                    }
-                }
-            } else if (event.type === 'serve') {
-                this.pendingMoves['left'] = null;
-                this.pendingMoves['right'] = null;
-                
-                const servingPlayer = event.player as 'left' | 'right';
-                const receivingPlayer = servingPlayer === 'left' ? 'right' : 'left';
-                
-                for (let i = this.currentEventIndex + 1; i < this.events.length; i++) {
-                    const nextEvent = this.events[i];
-                    if (nextEvent.type === 'hit' && nextEvent.player === receivingPlayer && nextEvent.targetPaddlePosition) {
-                        const paddleHeight = 80;
-                        const targetY = nextEvent.targetPaddlePosition.y - paddleHeight / 2;
-                        const clampedTargetY = Math.max(0, Math.min(this.canvas.height - paddleHeight, targetY));
-                        
-                        this.pendingMoves[servingPlayer] = {
-                            targetY: clampedTargetY,
-                            eventIndex: i,
-                            type: 'position_for_serve_followup',
-                            executed: false
-                        };
-                        break;
-                    }
-                }
-            } else if (event.type === 'score') {
-                const ballMovingLeft = this.ballVelocity!.x < 0;
-                const missingSide = ballMovingLeft ? 'left' : 'right';
-                this.pendingMoves[missingSide] = null;
+            // Handle position based on event type
+            switch (event.type) {
+                case EventType.HIT:
+                case EventType.SCORE:
+                    this.ballPosition = { ...event.position };
+                    break;
+                case EventType.SERVE:
+                    this.ballPosition = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+                    break;
             }
+            this.ballVelocity = { ...event.velocity };
+            ballStateChanged = true;
 
-            this.replayLogger.logEvent(
-                event.type,
-                event.position,
-                event.velocity,
-                event.player,
-                event.targetPaddlePosition
-            );
+            // Calculate all paddle movements for this event in one place
+            this.calculateEventMovements(event, ball, leftPaddle, rightPaddle);
+
+            // Log the event using the appropriate method
+            switch (event.type) {
+                case EventType.HIT:
+                    this.replayLogger.logHitEvent(
+                        event.position,
+                        event.velocity,
+                        event.player,
+                        event.paddlePositions.left,
+                        event.paddlePositions.right,
+                        event.tick
+                    );
+                    break;
+                case EventType.SERVE:
+                    this.replayLogger.logServeEvent(
+                        event.velocity,
+                        event.player,
+                        event.paddlePositions.left,
+                        event.paddlePositions.right,
+                        event.tick
+                    );
+                    break;
+                case EventType.SCORE:
+                    this.replayLogger.logScoreEvent(
+                        event.position,
+                        event.velocity,
+                        event.player,
+                        event.tick
+                    );
+                    break;
+            }
 
             this.currentEventIndex++;
         }
 
-        if (this.ballPosition && this.ballVelocity) {
+        // Set ball state from replay events only if state changed from an event
+        if (ballStateChanged && this.ballPosition && this.ballVelocity) {
             ball.position.x = this.ballPosition.x;
             ball.position.y = this.ballPosition.y;
             ball.velocity.x = this.ballVelocity.x;
             ball.velocity.y = this.ballVelocity.y;
-
-            ball.update(deltaTime);
-
-            this.ballPosition = { x: ball.position.x, y: ball.position.y };
-            this.ballVelocity = { x: ball.velocity.x, y: ball.velocity.y };
         }
 
-        if (this.currentEventIndex >= this.events.length &&
-            currentTime > this.events[this.events.length - 1].timestamp + 2000) {
-            this.stopReplay();
+        // Check if replay should end (after processing all events + buffer)
+        if (this.currentEventIndex >= this.events.length) {
+            const lastEventTick = this.events.length > 0 ? this.events[this.events.length - 1].tick : 0;
+            
+            if (currentTick > lastEventTick + REPLAY_CONFIG.REPLAY_END_BUFFER_TICKS) { // 2 second buffer at 60fps
+                this.stopReplay();
+            }
         }
+        
+        return ballStateChanged;
     }
 
     stopReplay(): void {

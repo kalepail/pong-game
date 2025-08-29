@@ -1,5 +1,6 @@
 import { Vec2 } from './Vec2.ts';
 import { PaddleSide, KeyMap } from './types.ts';
+import { GAME_CONSTANTS } from './constants.ts';
 
 export class Paddle {
     canvas: HTMLCanvasElement;
@@ -13,13 +14,13 @@ export class Paddle {
 
     constructor(canvas: HTMLCanvasElement, x: number, side: PaddleSide) {
         this.canvas = canvas;
-        this.width = 10;
-        this.height = 80;
+        this.width = GAME_CONSTANTS.PADDLE_WIDTH;
+        this.height = GAME_CONSTANTS.PADDLE_HEIGHT;
         this.x = x;
         this.y = canvas.height / 2 - this.height / 2;
         this.side = side;
         this.velocity = 0;
-        this.speed = 400;
+        this.speed = GAME_CONSTANTS.PADDLE_SPEED;
     }
 
     update(deltaTime: number, keys: KeyMap): void {
@@ -61,16 +62,19 @@ export class Paddle {
             console.log(`${this.side} paddle HIT! ballX: ${ball.position.x}, paddleFaceX: ${paddleFaceX}`);
             
             const hitPosition = Math.max(0, Math.min(1, (ball.position.y - paddleTop) / this.height));
-            const normalizedPosition = Math.max(-0.8, Math.min(0.8, 2 * hitPosition - 1));
-            const maxBounceAngle = Math.PI / 3;
+            const normalizedPosition = Math.max(
+                GAME_CONSTANTS.MIN_NORMALIZED_POSITION, 
+                Math.min(GAME_CONSTANTS.MAX_NORMALIZED_POSITION, 2 * hitPosition - 1)
+            );
+            const maxBounceAngle = GAME_CONSTANTS.MAX_BOUNCE_ANGLE;
             const bounceAngle = normalizedPosition * maxBounceAngle;
             
             const approachSpeed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.y ** 2);
-            const speed = Math.min(approachSpeed * 1.05, 800);
+            const speed = Math.min(approachSpeed * GAME_CONSTANTS.BALL_SPEED_INCREASE_FACTOR, GAME_CONSTANTS.BALL_MAX_SPEED);
             
             ball.velocity.x = (this.side === 'left' ? 1 : -1) * Math.cos(bounceAngle) * speed;
             ball.velocity.y = Math.sin(bounceAngle) * speed;
-            ball.velocity.y += this.velocity * 0.3;
+            ball.velocity.y += this.velocity * GAME_CONSTANTS.PADDLE_VELOCITY_TRANSFER;
             
             ball.position.x = paddleFaceX + (this.side === 'left' ? ballRadius : -ballRadius);
             ball.position.y = ball.position.y;
@@ -84,6 +88,11 @@ export class Paddle {
     draw(ctx: CanvasRenderingContext2D): void {
         ctx.fillStyle = '#0f0';
         ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+    
+    drawAt(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+        ctx.fillStyle = '#0f0';
+        ctx.fillRect(x, y, this.width, this.height);
     }
 
     reset(): void {

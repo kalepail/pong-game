@@ -1,61 +1,108 @@
 import { Vec2 } from './Vec2.ts';
-import { GameEvent, ComparisonResult } from './types.ts';
+import { GameEvent, ComparisonResult, PaddleSide, EventType, HitEvent, ServeEvent, ScoreEvent } from './types.ts';
+import { GAME_CONSTANTS } from './constants.ts';
 
 export class EventLogger {
     events: GameEvent[];
-    startTime: number | null;
     logElementId: string;
 
     constructor(logElementId: string = 'originalLogContent') {
         this.events = [];
-        this.startTime = null;
         this.logElementId = logElementId;
     }
 
     reset(): void {
         this.events = [];
-        this.startTime = Date.now();
         const logDiv = document.getElementById(this.logElementId);
         if (logDiv) logDiv.innerHTML = '';
     }
 
-    logEvent(type: GameEvent['type'], position: Vec2, velocity: Vec2, player: string | null = null, targetPaddlePosition: Vec2 | null = null): GameEvent {
-        if (!this.startTime) this.startTime = Date.now();
-
-        const event: GameEvent = {
-            type: type,
-            timestamp: Date.now() - this.startTime,
+    logHitEvent(position: Vec2, velocity: Vec2, player: PaddleSide, leftPaddleY: number, rightPaddleY: number, tick: number = 0): HitEvent {
+        const event: HitEvent = {
+            type: EventType.HIT,
+            tick: tick,
             position: { ...position },
             velocity: { ...velocity },
             player: player,
-            targetPaddlePosition: targetPaddlePosition ? { ...targetPaddlePosition } : null
+            paddlePositions: {
+                left: leftPaddleY,
+                right: rightPaddleY
+            }
         };
 
         this.events.push(event);
         this.displayEvent(event);
-
-        console.log(`[${this.logElementId}] Event logged:`, {
-            type,
-            timestamp: event.timestamp,
-            pos: `(${Math.round(position.x)}, ${Math.round(position.y)})`,
-            vel: `(${Math.round(velocity.x)}, ${Math.round(velocity.y)})`,
-            player
-        });
-
+        this.logToConsole(event, position);
         return event;
+    }
+
+    logServeEvent(velocity: Vec2, player: PaddleSide, leftPaddleY: number, rightPaddleY: number, tick: number = 0): ServeEvent {
+        const event: ServeEvent = {
+            type: EventType.SERVE,
+            tick: tick,
+            velocity: { ...velocity },
+            player: player,
+            paddlePositions: {
+                left: leftPaddleY,
+                right: rightPaddleY
+            }
+        };
+
+        this.events.push(event);
+        this.displayEvent(event);
+        this.logToConsole(event, { x: 0, y: 0 }); // Center position implied
+        return event;
+    }
+
+    logScoreEvent(position: Vec2, velocity: Vec2, player: PaddleSide, tick: number = 0): ScoreEvent {
+        const event: ScoreEvent = {
+            type: EventType.SCORE,
+            tick: tick,
+            position: { ...position },
+            velocity: { ...velocity },
+            player: player
+        };
+
+        this.events.push(event);
+        this.displayEvent(event);
+        this.logToConsole(event, position);
+        return event;
+    }
+
+    private logToConsole(event: GameEvent, position: Vec2): void {
+        console.log(`[${this.logElementId}] Event logged:`, {
+            type: event.type,
+            tick: event.tick,
+            pos: `(${Math.round(position.x)}, ${Math.round(position.y)})`,
+            vel: `(${Math.round(event.velocity.x)}, ${Math.round(event.velocity.y)})`,
+            player: event.player
+        });
     }
 
     displayEvent(event: GameEvent): void {
         const logDiv = document.getElementById(this.logElementId);
         if (!logDiv) return;
 
-        const targetPaddleText = event.targetPaddlePosition ? 
-            ` Target(${Math.round(event.targetPaddlePosition.x)}, ${Math.round(event.targetPaddlePosition.y)})` : '';
+        let paddleText = '';
+        let posText = '';
 
-        const eventText = `[${(event.timestamp / 1000).toFixed(2)}s] ${event.type.toUpperCase()} - ` +
-                         `Pos(${Math.round(event.position.x)}, ${Math.round(event.position.y)}) ` +
+        switch (event.type) {
+            case EventType.HIT:
+            case EventType.SERVE:
+                paddleText = ` Paddles(L:${Math.round(event.paddlePositions.left)}, R:${Math.round(event.paddlePositions.right)})`;
+                if (event.type === EventType.HIT) {
+                    posText = `Pos(${Math.round(event.position.x)}, ${Math.round(event.position.y)}) `;
+                }
+                break;
+            case EventType.SCORE:
+                posText = `Pos(${Math.round(event.position.x)}, ${Math.round(event.position.y)}) `;
+                break;
+        }
+            
+        const eventText = `[Tick ${event.tick}] ${event.type.toUpperCase()} - ` +
+                         posText +
                          `Vel(${Math.round(event.velocity.x)}, ${Math.round(event.velocity.y)})` +
-                         `${event.player ? ' by ' + event.player : ''}${targetPaddleText}\n`;
+                         `${event.player ? ' by ' + event.player : ''}${paddleText}\n`;
 
         logDiv.innerHTML += eventText;
         logDiv.scrollTop = logDiv.scrollHeight;
@@ -68,7 +115,6 @@ export class EventLogger {
     importLog(jsonString: string): boolean {
         try {
             this.events = JSON.parse(jsonString);
-            this.startTime = Date.now();
             return true;
         } catch (e) {
             console.error('Failed to import log:', e);
@@ -85,10 +131,24 @@ export class EventLogger {
             const e1 = this.events[i];
             const e2 = otherLogger.events[i];
 
-            if (e1.type === e2.type &&
-                Math.abs(e1.position.x - e2.position.x) < 5 &&
-                Math.abs(e1.position.y - e2.position.y) < 5) {
-                matchingEvents++;
+            let positionsMatch = true;
+
+            if (e1.type === e2.type) {
+                switch (e1.type) {
+                    case EventType.HIT:
+                    case EventType.SCORE:
+                        const pos1 = e1.position;
+                        const pos2 = (e2 as HitEvent | ScoreEvent).position;
+                        positionsMatch = Math.abs(pos1.x - pos2.x) < GAME_CONSTANTS.POSITION_TOLERANCE && Math.abs(pos1.y - pos2.y) < GAME_CONSTANTS.POSITION_TOLERANCE;
+                        break;
+                    case EventType.SERVE:
+                        // Serve events don't need position comparison
+                        break;
+                }
+
+                if (positionsMatch) {
+                    matchingEvents++;
+                }
             }
         }
 
