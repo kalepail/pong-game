@@ -59,8 +59,6 @@ export class Paddle {
         const ballBottom = ball.position.y + ballRadius;
         
         if (ballBottom >= paddleTop && ballTop <= paddleBottom) {
-            console.log(`${this.side} paddle HIT! ballX: ${ball.position.x}, paddleFaceX: ${paddleFaceX}`);
-            
             const hitPosition = Math.max(0, Math.min(1, (ball.position.y - paddleTop) / this.height));
             const normalizedPosition = Math.max(
                 -GAME_CONSTANTS.NORMALIZED_POSITION_LIMIT, 
