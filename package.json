@@ -1,0 +1,14 @@
+{
+  "name": "pong-game",
+  "version": "1.0.0",
+  "description": "A Pong game with event recording and replay functionality",
+  "main": "js/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

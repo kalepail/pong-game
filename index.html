@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong with Event Recording & Replay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        
+        #gameContainer {
+            text-align: center;
+        }
+        
+        canvas {
+            border: 2px solid #0f0;
+            background: #111;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        #scoreboard {
+            font-size: 32px;
+            margin-bottom: 20px;
+            letter-spacing: 10px;
+        }
+        
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #0f0;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #0a0;
+            transform: scale(1.05);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #eventLogs {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .event-log {
+            padding: 10px;
+            background: #222;
+            border: 1px solid #0f0;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 11px;
+            width: 380px;
+        }
+        
+        .event-log h3 {
+            color: #0f0;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-align: center;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 5px;
+        }
+        
+        #instructions {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .mode-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 18px;
+            padding: 10px;
+            border: 2px solid #0f0;
+            background: #111;
+        }
+    </style>
+</head>
+<body>
+    <div class="mode-indicator" id="modeIndicator">MODE: PLAY</div>
+    <div id="gameContainer">
+        <div id="scoreboard">
+            <span id="leftScore">0</span> - <span id="rightScore">0</span>
+        </div>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div id="controls">
+            <button id="startBtn">START GAME</button>
+            <button id="pauseBtn" disabled>PAUSE</button>
+            <button id="resetBtn">RESET</button>
+            <button id="replayBtn" disabled>REPLAY</button>
+            <button id="exportBtn" disabled>EXPORT LOG</button>
+            <button id="importBtn">IMPORT LOG</button>
+        </div>
+        <div id="instructions">
+            <p>Player 1: W/S keys | Player 2: Arrow Up/Down</p>
+            <p>First to 5 points wins!</p>
+        </div>
+        <div id="eventLogs">
+            <div class="event-log" id="originalLog">
+                <h3>ORIGINAL GAME</h3>
+                <div id="originalLogContent"></div>
+            </div>
+            <div class="event-log" id="replayLog">
+                <h3>REPLAY</h3>
+                <div id="replayLogContent"></div>
+            </div>
+        </div>
+    </div>
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
