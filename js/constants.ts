@@ -3,8 +3,7 @@ export const GAME_CONSTANTS = {
     // Paddle dimensions and positioning
     PADDLE_HEIGHT: 80,
     PADDLE_WIDTH: 10, // Visual only - not used in collision calculations
-    PADDLE_OFFSET_LEFT: 30,
-    PADDLE_OFFSET_RIGHT: 40, // Distance from right edge
+    PADDLE_OFFSET: 30, // Distance from screen edge for both paddles
     PADDLE_SPEED: 400,
     
     // Ball physics
@@ -49,12 +48,13 @@ export const REPLAY_CONFIG = {
 // Derived constants (calculated from base constants)
 export const DERIVED_CONSTANTS = {
     get PADDLE_FACE_X_LEFT() {
-        return GAME_CONSTANTS.PADDLE_OFFSET_LEFT; // Left paddle face is at the offset
+        // Left paddle face is at the RIGHT edge of the paddle (where ball hits)
+        return GAME_CONSTANTS.PADDLE_OFFSET + GAME_CONSTANTS.PADDLE_WIDTH;
     },
     
     get PADDLE_FACE_X_RIGHT() {
-        // Right paddle face position will be calculated using canvas width - offset
-        return (canvasWidth: number) => canvasWidth - GAME_CONSTANTS.PADDLE_OFFSET_RIGHT;
+        // Right paddle face is at the LEFT edge of the paddle (where ball hits)
+        return (canvasWidth: number) => canvasWidth - GAME_CONSTANTS.PADDLE_OFFSET - GAME_CONSTANTS.PADDLE_WIDTH;
     },
     
     get SAFETY_MARGIN() {

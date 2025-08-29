@@ -47,8 +47,8 @@ export class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')!;
         this.ball = new Ball(canvas);
-        this.leftPaddle = new Paddle(canvas, GAME_CONSTANTS.PADDLE_OFFSET_LEFT, 'left');
-        this.rightPaddle = new Paddle(canvas, canvas.width - GAME_CONSTANTS.PADDLE_OFFSET_RIGHT, 'right');
+        this.leftPaddle = new Paddle(canvas, GAME_CONSTANTS.PADDLE_OFFSET, 'left');
+        this.rightPaddle = new Paddle(canvas, canvas.width - GAME_CONSTANTS.PADDLE_OFFSET - GAME_CONSTANTS.PADDLE_WIDTH, 'right');
         this.keys = {};
         this.lastTime = 0;
         this.isRunning = false;
