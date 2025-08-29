@@ -89,7 +89,7 @@ export class EventLogger {
         switch (event.type) {
             case EventType.HIT:
             case EventType.SERVE:
-                paddleText = ` Paddles(L:${Math.round(event.paddlePositions.left)}, R:${Math.round(event.paddlePositions.right)})`;
+                paddleText = ` Pad(L:${Math.round(event.paddlePositions.left)}, R:${Math.round(event.paddlePositions.right)})`;
                 if (event.type === EventType.HIT) {
                     posText = `Pos(${Math.round(event.position.x)}, ${Math.round(event.position.y)}) `;
                 }
@@ -99,12 +99,27 @@ export class EventLogger {
                 break;
         }
             
-        const eventText = `[Tick ${event.tick}] ${event.type.toUpperCase()} - ` +
-                         posText +
+        let direction = event.player?.toUpperCase() || 'UNKNOWN';
+        
+        // For score events, show who got scored on (opposite of who scored)
+        if (event.type === EventType.SCORE) {
+            direction = event.player === 'left' ? 'RIGHT' : 'LEFT';
+        }
+        // For serve events, show direction of serve (opposite of who serves)
+        else if (event.type === EventType.SERVE) {
+            direction = event.player === 'left' ? 'RIGHT' : 'LEFT';
+        }
+        // For hit events, direction is correct (who hit)
+        
+        const headerLine = `[${event.tick}, ${event.type.toUpperCase()}, ${direction}]`;
+        const dataLine = posText +
                          `Vel(${Math.round(event.velocity.x)}, ${Math.round(event.velocity.y)})` +
-                         `${event.player ? ' by ' + event.player : ''}${paddleText}\n`;
+                         paddleText;
 
-        logDiv.innerHTML += eventText;
+        const eventElement = document.createElement('div');
+        eventElement.style.marginBottom = '4px';
+        eventElement.innerHTML = `${headerLine}<br>${dataLine}`;
+        logDiv.appendChild(eventElement);
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
