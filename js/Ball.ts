@@ -1,16 +1,19 @@
-import { Vec2 } from './Vec2.js';
+import { Vec2 } from './Vec2.ts';
 
 export class Ball {
-    constructor(canvas) {
+    canvas: HTMLCanvasElement;
+    radius: number;
+    position: Vec2;
+    velocity: Vec2;
+
+    constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
         this.radius = 8;
-        // Don't reset in constructor - let Game.start() handle initial position
         this.position = new Vec2(canvas.width / 2, canvas.height / 2);
         this.velocity = new Vec2(0, 0);
     }
 
-    reset(servingSide = 'left') {
-        // Always serve from the center of the playfield
+    reset(servingSide: 'left' | 'right' = 'left'): void {
         this.position = new Vec2(
             this.canvas.width / 2,
             this.canvas.height / 2
@@ -25,12 +28,10 @@ export class Ball {
         );
     }
 
-    update(deltaTime) {
-        // Update position
+    update(deltaTime: number): void {
         this.position.x += this.velocity.x * deltaTime;
         this.position.y += this.velocity.y * deltaTime;
         
-        // Check wall collisions (top and bottom)
         if (this.position.y - this.radius <= 0) {
             this.position.y = this.radius;
             this.velocity.y = Math.abs(this.velocity.y);
@@ -40,19 +41,19 @@ export class Ball {
         }
     }
 
-    draw(ctx) {
+    draw(ctx: CanvasRenderingContext2D): void {
         ctx.fillStyle = '#0f0';
         ctx.beginPath();
         ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    isOutOfBounds() {
+    isOutOfBounds(): boolean {
         return this.position.x < -this.radius ||
                this.position.x > this.canvas.width + this.radius;
     }
 
-    getScoringPlayer() {
+    getScoringPlayer(): 'left' | 'right' {
         return this.position.x < 0 ? 'right' : 'left';
     }
 }

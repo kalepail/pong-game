@@ -1,21 +1,28 @@
+import { Vec2 } from './Vec2.ts';
+import { GameEvent, ComparisonResult } from './types.ts';
+
 export class EventLogger {
-    constructor(logElementId = 'originalLogContent') {
+    events: GameEvent[];
+    startTime: number | null;
+    logElementId: string;
+
+    constructor(logElementId: string = 'originalLogContent') {
         this.events = [];
         this.startTime = null;
         this.logElementId = logElementId;
     }
 
-    reset() {
+    reset(): void {
         this.events = [];
         this.startTime = Date.now();
         const logDiv = document.getElementById(this.logElementId);
         if (logDiv) logDiv.innerHTML = '';
     }
 
-    logEvent(type, position, velocity, player = null, targetPaddlePosition = null) {
+    logEvent(type: GameEvent['type'], position: Vec2, velocity: Vec2, player: string | null = null, targetPaddlePosition: Vec2 | null = null): GameEvent {
         if (!this.startTime) this.startTime = Date.now();
 
-        const event = {
+        const event: GameEvent = {
             type: type,
             timestamp: Date.now() - this.startTime,
             position: { ...position },
@@ -27,7 +34,6 @@ export class EventLogger {
         this.events.push(event);
         this.displayEvent(event);
 
-        // Debug: Log to console to track duplicate events
         console.log(`[${this.logElementId}] Event logged:`, {
             type,
             timestamp: event.timestamp,
@@ -39,7 +45,7 @@ export class EventLogger {
         return event;
     }
 
-    displayEvent(event) {
+    displayEvent(event: GameEvent): void {
         const logDiv = document.getElementById(this.logElementId);
         if (!logDiv) return;
 
@@ -55,11 +61,11 @@ export class EventLogger {
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
-    exportLog() {
+    exportLog(): string {
         return JSON.stringify(this.events, null, 2);
     }
 
-    importLog(jsonString) {
+    importLog(jsonString: string): boolean {
         try {
             this.events = JSON.parse(jsonString);
             this.startTime = Date.now();
@@ -70,7 +76,7 @@ export class EventLogger {
         }
     }
 
-    compareWith(otherLogger) {
+    compareWith(otherLogger: EventLogger): ComparisonResult {
         const thisEvents = this.events.length;
         const otherEvents = otherLogger.events.length;
 
@@ -94,7 +100,7 @@ export class EventLogger {
         };
     }
 
-    getEvents() {
+    getEvents(): GameEvent[] {
         return [...this.events];
     }
 }

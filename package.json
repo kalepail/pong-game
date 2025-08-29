@@ -2,13 +2,17 @@
   "name": "pong-game",
   "version": "1.0.0",
   "description": "A Pong game with event recording and replay functionality",
-  "main": "js/main.js",
+  "type": "module",
+  "main": "js/main.ts",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2",
     "vite": "^5.0.0"
   }
 }
