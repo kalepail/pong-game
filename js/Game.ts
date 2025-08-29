@@ -426,12 +426,6 @@ export class Game {
             this.ball.update(this.TICK_DURATION);
 
             if (this.ball.isOutOfBounds()) {
-                console.log('Ball out of bounds!', {
-                    x: this.ball.position.x,
-                    y: this.ball.position.y,
-                    tick: this.currentTick
-                });
-
                 const scoringPlayer = this.ball.getScoringPlayer();
 
                 this.eventLogger.logScoreEvent(
