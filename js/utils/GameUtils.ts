@@ -1,5 +1,5 @@
-import { Vec2 } from './Vec2.ts';
-import { GAME_CONSTANTS, REPLAY_CONFIG } from './constants.ts';
+import { Vec2 } from '../classes/Vec2.ts';
+import { GAME_CONSTANTS, REPLAY_CONFIG } from '../constants.ts';
 
 /**
  * Utility functions for common game positioning and canvas calculations

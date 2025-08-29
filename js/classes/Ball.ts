@@ -1,7 +1,7 @@
 import { Vec2 } from './Vec2.ts';
-import { PaddleSide } from './types.ts';
-import { GAME_CONSTANTS } from './constants.ts';
-import { GameUtils } from './GameUtils.ts';
+import { PaddleSide } from '../types.ts';
+import { GAME_CONSTANTS } from '../constants.ts';
+import { GameUtils } from '../utils/GameUtils.ts';
 
 export class Ball {
     canvas: HTMLCanvasElement;

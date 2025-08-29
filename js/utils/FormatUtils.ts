@@ -1,4 +1,4 @@
-import { Vec2 } from './Vec2.ts';
+import { Vec2 } from '../classes/Vec2.ts';
 
 /**
  * Utility functions for consistent formatting across the application

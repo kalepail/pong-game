@@ -1,9 +1,9 @@
 import { Vec2 } from './Vec2.ts';
-import { GameEvent, ComparisonResult, PaddleSide, EventType, HitEvent, ServeEvent, ScoreEvent } from './types.ts';
-import { GAME_CONSTANTS } from './constants.ts';
-import { FormatUtils } from './FormatUtils.ts';
+import { GameEvent, ComparisonResult, PaddleSide, EventType, HitEvent, ServeEvent, ScoreEvent } from '../types.ts';
+import { GAME_CONSTANTS } from '../constants.ts';
+import { FormatUtils } from '../utils/FormatUtils.ts';
 
-export class EventLogger {
+export class Events {
     events: GameEvent[];
     logElementId: string;
 
@@ -100,7 +100,7 @@ export class EventLogger {
                 break;
         }
             
-        let direction = event.player?.toUpperCase() || 'UNKNOWN';
+        let direction = event.player.toUpperCase() || 'UNKNOWN';
         
         // For score events, show who got scored on (opposite of who scored)
         if (event.type === EventType.SCORE) {
@@ -148,7 +148,7 @@ export class EventLogger {
         }
     }
 
-    compareWith(otherLogger: EventLogger): ComparisonResult {
+    compareWith(otherLogger: Events): ComparisonResult {
         const thisEvents = this.events.length;
         const otherEvents = otherLogger.events.length;
 

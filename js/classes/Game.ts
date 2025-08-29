@@ -1,12 +1,12 @@
 import { Ball } from './Ball.ts';
 import { Paddle } from './Paddle.ts';
-import { EventLogger } from './EventLogger.ts';
-import { ReplaySystem } from './ReplaySystem.ts';
+import { Events } from './Events.ts';
+import { Replay } from './Replay.ts';
 import { Engine, CollisionResult } from './Engine.ts';
-import { GameMode, KeyMap, FinalScores, PaddleSide } from './types.ts';
-import { GAME_CONSTANTS } from './constants.ts';
-import { GameUtils } from './GameUtils.ts';
-import { DOMUtils } from './DOMUtils.ts';
+import { GameMode, KeyMap, FinalScores, PaddleSide } from '../types.ts';
+import { GAME_CONSTANTS } from '../constants.ts';
+import { GameUtils } from '../utils/GameUtils.ts';
+import { DOMUtils } from '../utils/DOMUtils.ts';
 
 export class Game {
     canvas: HTMLCanvasElement;
@@ -19,8 +19,8 @@ export class Game {
     isRunning: boolean;
     leftScore: number;
     rightScore: number;
-    eventLogger: EventLogger;
-    replaySystem: ReplaySystem;
+    eventLogger: Events;
+    replaySystem: Replay;
     mode: GameMode;
     lastHitPlayer: string | null;
     finalScores: FinalScores | null;
@@ -45,8 +45,8 @@ export class Game {
         this.isRunning = false;
         this.leftScore = 0;
         this.rightScore = 0;
-        this.eventLogger = new EventLogger('originalLogContent');
-        this.replaySystem = new ReplaySystem(canvas, this.engine, this.eventLogger);
+        this.eventLogger = new Events('originalLogContent');
+        this.replaySystem = new Replay(canvas, this.engine, this.eventLogger);
         this.mode = 'play';
         this.lastHitPlayer = null;
         this.finalScores = null;

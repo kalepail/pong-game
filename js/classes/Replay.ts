@@ -1,10 +1,10 @@
-import { EventLogger } from './EventLogger.ts';
+import { Events } from './Events.ts';
 import { Engine } from './Engine.ts';
 import { Paddle } from './Paddle.ts';
-import { GameEvent, Ball, PaddleSide, EventType, HitEvent } from './types.ts';
+import { GameEvent, Ball, PaddleSide, EventType, HitEvent } from '../types.ts';
 import { Vec2 } from './Vec2.ts';
-import { GAME_CONSTANTS } from './constants.ts';
-import { GameUtils } from './GameUtils.ts';
+import { GAME_CONSTANTS } from '../constants.ts';
+import { GameUtils } from '../utils/GameUtils.ts';
 
 interface PendingMove {
     targetY: number;
@@ -23,7 +23,7 @@ interface PendingMoves {
     right: PendingMove | null;
 }
 
-export class ReplaySystem {
+export class Replay {
     canvas: HTMLCanvasElement;
     engine: Engine;
     events: GameEvent[];
@@ -31,13 +31,13 @@ export class ReplaySystem {
     isActive: boolean;
     ballPosition: Vec2 | null;
     ballVelocity: Vec2 | null;
-    replayLogger: EventLogger;
-    originalLogger: EventLogger | null;
+    replayLogger: Events;
+    originalLogger: Events | null;
     paddleTargets: PaddleTargets;
     pendingMoves: PendingMoves;
     lastProcessedScoreEvent: GameEvent | null;
 
-    constructor(canvas: HTMLCanvasElement, engine: Engine, originalLogger?: EventLogger) {
+    constructor(canvas: HTMLCanvasElement, engine: Engine, originalLogger?: Events) {
         this.canvas = canvas;
         this.engine = engine;
         this.events = [];
@@ -45,7 +45,7 @@ export class ReplaySystem {
         this.isActive = false;
         this.ballPosition = null;
         this.ballVelocity = null;
-        this.replayLogger = new EventLogger('replayLogContent');
+        this.replayLogger = new Events('replayLogContent');
         this.originalLogger = originalLogger || null;
         this.paddleTargets = { left: null, right: null };
         this.pendingMoves = { left: null, right: null };

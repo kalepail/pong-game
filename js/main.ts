@@ -1,4 +1,4 @@
-import { Game } from './Game.ts';
+import { Game } from './classes/Game.ts';
 
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('fileInput')!.addEventListener('change', (e) => {
         const file = (e.target as HTMLInputElement).files?.[0];
+        
         if (file) {
             const syntheticEvent = { target: { files: [file] } };
             game.handleFileImport(syntheticEvent);

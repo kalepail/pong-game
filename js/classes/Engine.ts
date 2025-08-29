@@ -1,8 +1,8 @@
 import { Ball } from './Ball.ts';
 import { Paddle } from './Paddle.ts';
-import { GameMode, KeyMap, PaddleSide } from './types.ts';
-import { GAME_CONSTANTS } from './constants.ts';
-import { GameUtils } from './GameUtils.ts';
+import { GameMode, KeyMap, PaddleSide } from '../types.ts';
+import { GAME_CONSTANTS } from '../constants.ts';
+import { GameUtils } from '../utils/GameUtils.ts';
 
 export interface PhysicsState {
     ball: { x: number; y: number };

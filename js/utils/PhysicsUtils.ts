@@ -1,4 +1,4 @@
-import { GAME_CONSTANTS } from './constants.ts';
+import { GAME_CONSTANTS } from '../constants.ts';
 
 /**
  * Utility functions for physics calculations

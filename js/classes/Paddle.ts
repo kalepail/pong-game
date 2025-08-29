@@ -1,8 +1,8 @@
 import { Vec2 } from './Vec2.ts';
-import { PaddleSide, KeyMap } from './types.ts';
-import { GAME_CONSTANTS } from './constants.ts';
-import { GameUtils } from './GameUtils.ts';
-import { PhysicsUtils } from './PhysicsUtils.ts';
+import { PaddleSide, KeyMap } from '../types.ts';
+import { GAME_CONSTANTS } from '../constants.ts';
+import { GameUtils } from '../utils/GameUtils.ts';
+import { PhysicsUtils } from '../utils/PhysicsUtils.ts';
 
 export class Paddle {
     canvas: HTMLCanvasElement;
