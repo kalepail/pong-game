@@ -2,6 +2,7 @@ import { Vec2 } from './Vec2.ts';
 import { GameEvent, ComparisonResult, PaddleSide, EventType, HitEvent, ServeEvent, ScoreEvent } from '../types.ts';
 import { GAME_CONSTANTS } from '../constants.ts';
 import { FormatUtils } from '../utils/FormatUtils.ts';
+import { DOMUtils } from '../utils/DOMUtils.ts';
 
 export class Events {
     events: GameEvent[];
@@ -14,8 +15,12 @@ export class Events {
 
     reset(): void {
         this.events = [];
-        const logDiv = document.getElementById(this.logElementId);
-        if (logDiv) logDiv.innerHTML = '';
+        try {
+            const logDiv = DOMUtils.getElement(this.logElementId);
+            logDiv.innerHTML = '';
+        } catch (error) {
+            // Element may not exist in some contexts
+        }
     }
 
     logHitEvent(position: Vec2, velocity: Vec2, player: PaddleSide, leftPaddleY: number, rightPaddleY: number, tick: number = 0): HitEvent {
@@ -81,8 +86,7 @@ export class Events {
     }
 
     displayEvent(event: GameEvent, skipScroll: boolean = false, skipAnimation: boolean = false): void {
-        const logDiv = document.getElementById(this.logElementId);
-        if (!logDiv) return;
+        const logDiv = DOMUtils.getElement(this.logElementId);
 
         let paddleText = '';
         let posText = '';
@@ -191,8 +195,7 @@ export class Events {
     }
 
     highlightReplayEvent(eventIndex: number): void {
-        const logDiv = document.getElementById(this.logElementId);
-        if (!logDiv) return;
+        const logDiv = DOMUtils.getElement(this.logElementId);
 
         // Remove previous highlight
         const previousHighlight = logDiv.querySelector('.replay-current');
@@ -209,7 +212,7 @@ export class Events {
         }
 
         // Also scroll the replay log to the same position
-        const replayLogDiv = document.getElementById('replayLogContent');
+        const replayLogDiv = DOMUtils.getElement('replayLogContent');
         if (replayLogDiv) {
             const replayEntries = replayLogDiv.querySelectorAll('.log-entry');
             if (replayEntries[eventIndex]) {
@@ -219,8 +222,7 @@ export class Events {
     }
 
     highlightReplayEvents(eventIndices: number[]): void {
-        const logDiv = document.getElementById(this.logElementId);
-        if (!logDiv) return;
+        const logDiv = DOMUtils.getElement(this.logElementId);
 
         // Remove previous highlights
         const previousHighlights = logDiv.querySelectorAll('.replay-current');
@@ -245,7 +247,7 @@ export class Events {
         }
 
         // Also scroll the replay log to the same position
-        const replayLogDiv = document.getElementById('replayLogContent');
+        const replayLogDiv = DOMUtils.getElement('replayLogContent');
         if (replayLogDiv && eventIndices.length > 0) {
             const lastIndex = eventIndices[eventIndices.length - 1];
             const replayEntries = replayLogDiv.querySelectorAll('.log-entry');
@@ -256,8 +258,7 @@ export class Events {
     }
 
     clearReplayHighlight(): void {
-        const logDiv = document.getElementById(this.logElementId);
-        if (!logDiv) return;
+        const logDiv = DOMUtils.getElement(this.logElementId);
 
         const highlighted = logDiv.querySelector('.replay-current');
         if (highlighted) {

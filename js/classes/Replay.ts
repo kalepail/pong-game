@@ -105,7 +105,7 @@ export class Replay {
                         // Position hitting paddle for their next hit after opponent's hit
                         // Convert from recorded center position to top position
                         const preemptiveY = nextEvent.paddlePositions[hitPlayer] - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
-                        const clampedY = Math.max(0, Math.min(this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT, preemptiveY));
+                        const clampedY = GameUtils.clampPaddleY(preemptiveY, this.canvas);
                         
                         this.pendingMoves[hitPlayer] = {
                             targetY: clampedY,
@@ -162,7 +162,7 @@ export class Replay {
                         // Position serving player for their next hit after receiver hits
                         // Convert from recorded center position to top position
                         const preemptiveY = nextEvent.paddlePositions[servingPlayer] - GAME_CONSTANTS.PADDLE_HEIGHT / 2;
-                        const clampedY = Math.max(0, Math.min(this.canvas.height - GAME_CONSTANTS.PADDLE_HEIGHT, preemptiveY));
+                        const clampedY = GameUtils.clampPaddleY(preemptiveY, this.canvas);
                         this.pendingMoves[servingPlayer] = {
                             targetY: clampedY,
                             eventIndex: i,
@@ -268,7 +268,7 @@ export class Replay {
                     this.ballPosition = { ...firstEvent.position };
                     break;
                 case EventType.SERVE:
-                    this.ballPosition = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+                    this.ballPosition = GameUtils.getCanvasCenter(this.canvas);
                     break;
             }
             this.ballVelocity = { ...firstEvent.velocity };
@@ -305,7 +305,7 @@ export class Replay {
                     this.ballPosition = { ...event.position };
                     break;
                 case EventType.SERVE:
-                    this.ballPosition = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+                    this.ballPosition = GameUtils.getCanvasCenter(this.canvas);
                     break;
             }
             this.ballVelocity = { ...event.velocity };
