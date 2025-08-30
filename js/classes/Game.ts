@@ -57,14 +57,20 @@ export class Game {
     }
 
     setupControls(): void {
+        const gameKeys = new Set(['w', 'W', 's', 'S', 'ArrowUp', 'ArrowDown']);
+        
         window.addEventListener('keydown', (e) => {
-            this.keys[e.key] = true;
-            e.preventDefault();
+            if (gameKeys.has(e.key)) {
+                this.keys[e.key] = true;
+                e.preventDefault();
+            }
         });
 
         window.addEventListener('keyup', (e) => {
-            this.keys[e.key] = false;
-            e.preventDefault();
+            if (gameKeys.has(e.key)) {
+                this.keys[e.key] = false;
+                e.preventDefault();
+            }
         });
     }
 
